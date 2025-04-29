@@ -7,19 +7,19 @@ const CurrentLevel: React.FC = () => {
   if (!currentLevel) {
     return (
       <div className="bg-white p-4 rounded-lg shadow-md">
-        <h2 className="text-lg font-semibold text-gray-800 mb-4">Current Water Level</h2>
-        <p className="text-gray-500">Loading data...</p>
+        <h2 className="text-lg font-semibold text-gray-800 mb-4">Level Air Saat Ini</h2>
+        <p className="text-gray-500">Memuat data...</p>
       </div>
     );
   }
 
-  // Determine status based on thresholds
+  // Tentukan status berdasarkan ambang batas
   const getStatusInfo = () => {
     const level = currentLevel.level;
     
     if (level >= settings.dangerLevel) {
       return {
-        label: 'DANGER',
+        label: 'BAHAYA',
         color: 'text-red-600',
         bgColor: 'bg-red-100',
         borderColor: 'border-red-200',
@@ -36,7 +36,7 @@ const CurrentLevel: React.FC = () => {
       };
     } else if (level >= settings.warningLevel) {
       return {
-        label: 'WARNING',
+        label: 'AWAS',
         color: 'text-yellow-600',
         bgColor: 'bg-yellow-100',
         borderColor: 'border-yellow-200',
@@ -79,7 +79,7 @@ const CurrentLevel: React.FC = () => {
   
   return (
     <div className="bg-white p-4 rounded-lg shadow-md">
-      <h2 className="text-lg font-semibold text-gray-800 mb-4">Current Water Level</h2>
+      <h2 className="text-lg font-semibold text-gray-800 mb-4">Level Air Saat Ini</h2>
       
       <div className={`flex items-center p-4 mb-4 ${statusInfo.bgColor} ${statusInfo.borderColor} border rounded-md`}>
         {statusInfo.icon}
@@ -87,13 +87,13 @@ const CurrentLevel: React.FC = () => {
           <h3 className={`text-sm font-medium ${statusInfo.color}`}>Status: {statusInfo.label}</h3>
           <div className="mt-2 text-sm">
             <p className={statusInfo.color}>
-              Current level is {currentLevel.level} {currentLevel.unit}
+              Level saat ini adalah {currentLevel.level} {currentLevel.unit}
             </p>
           </div>
         </div>
       </div>
 
-      {/* Water level visual indicator */}
+      {/* Indikator visual level air */}
       <div className="w-full bg-gray-200 rounded-full h-6 mb-4">
         <div
           className={`h-6 rounded-full ${
@@ -105,19 +105,19 @@ const CurrentLevel: React.FC = () => {
 
       <div className="grid grid-cols-2 gap-4 text-sm text-gray-600">
         <div>
-          <span className="font-medium">Reading:</span> {currentLevel.level} {currentLevel.unit}
+          <span className="font-medium">Pembacaan:</span> {currentLevel.level} {currentLevel.unit}
         </div>
         <div>
-          <span className="font-medium">Max Level:</span> {settings.maxLevel} {settings.unit}
+          <span className="font-medium">Level Maksimum:</span> {settings.maxLevel} {settings.unit}
         </div>
         <div>
-          <span className="font-medium">Warning at:</span> {settings.warningLevel} {settings.unit}
+          <span className="font-medium">Peringatan pada:</span> {settings.warningLevel} {settings.unit}
         </div>
         <div>
-          <span className="font-medium">Danger at:</span> {settings.dangerLevel} {settings.unit}
+          <span className="font-medium">Bahaya pada:</span> {settings.dangerLevel} {settings.unit}
         </div>
         <div className="col-span-2">
-          <span className="font-medium">Last updated:</span> {formattedTime}
+          <span className="font-medium">Terakhir diperbarui:</span> {formattedTime}
         </div>
       </div>
     </div>

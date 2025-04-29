@@ -7,7 +7,7 @@ import { useAppContext } from '@/context/AppContext';
 const Navbar: React.FC = () => {
   const { deviceStatus, alerts } = useAppContext();
   
-  // Count unacknowledged alerts
+  // Hitung peringatan yang belum diketahui
   const unacknowledgedAlerts = alerts.filter(alert => !alert.acknowledged).length;
   
   return (
@@ -27,20 +27,20 @@ const Navbar: React.FC = () => {
               >
                 <path d="M12 2v20M2 12h20M12 9a3 3 0 0 0 0 6h0a3 3 0 0 0 0-6z" />
               </svg>
-              <span className="ml-2 text-xl font-bold text-gray-800">Water Monitor</span>
+              <span className="ml-2 text-xl font-bold text-gray-800">Monitor Air</span>
             </Link>
           </div>
 
           <div className="flex items-center">
-            {/* Device status indicator */}
+            {/* Indikator status perangkat */}
             <div className="flex items-center mr-4">
               <div className={`h-3 w-3 rounded-full ${deviceStatus.online ? 'bg-green-500' : 'bg-red-500'}`}></div>
               <span className="ml-2 text-sm font-medium text-gray-600">
-                {deviceStatus.online ? 'Online' : 'Offline'}
+                {deviceStatus.online ? 'Daring' : 'Luring'}
               </span>
             </div>
             
-            {/* Alerts indicator */}
+            {/* Indikator peringatan */}
             {unacknowledgedAlerts > 0 && (
               <Link href="/history" className="flex items-center text-red-600 mr-4">
                 <svg 

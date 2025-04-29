@@ -4,30 +4,30 @@ import { useAppContext } from '@/context/AppContext';
 const AlarmStatus: React.FC = () => {
   const { currentLevel, settings, alerts } = useAppContext();
   
-  // Get the most recent unacknowledged alert, if any
+  // Dapatkan peringatan terbaru yang belum diketahui, jika ada
   const latestAlert = alerts
     .filter(alert => !alert.acknowledged)
     .sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime())[0];
   
-  // Determine if alarm is active
+  // Tentukan apakah alarm aktif
   const isAlarmActive = !!latestAlert || 
     (currentLevel && (
       currentLevel.level >= settings.dangerLevel || 
       currentLevel.level >= settings.warningLevel
     ));
   
-  // Determine alarm level
+  // Tentukan level alarm
   const getAlarmStatus = () => {
     if (!currentLevel) return null;
     
-    // If there's a danger alert or current level above danger threshold
+    // Jika ada peringatan bahaya atau level saat ini di atas ambang bahaya
     if (
       (latestAlert && latestAlert.type === 'danger') ||
       currentLevel.level >= settings.dangerLevel
     ) {
       return {
-        level: 'DANGER',
-        message: 'Water level has reached DANGER threshold!',
+        level: 'BAHAYA',
+        message: 'Level air telah mencapai ambang BAHAYA!',
         icon: '🚨',
         color: 'text-red-600',
         bgColor: 'bg-red-100',
@@ -35,14 +35,14 @@ const AlarmStatus: React.FC = () => {
       };
     }
     
-    // If there's a warning alert or current level above warning threshold
+    // Jika ada peringatan awas atau level saat ini di atas ambang peringatan
     if (
       (latestAlert && latestAlert.type === 'warning') ||
       currentLevel.level >= settings.warningLevel
     ) {
       return {
-        level: 'WARNING',
-        message: 'Water level has reached WARNING threshold',
+        level: 'AWAS',
+        message: 'Level air telah mencapai ambang PERINGATAN',
         icon: '⚠️',
         color: 'text-yellow-600',
         bgColor: 'bg-yellow-100',
@@ -50,10 +50,10 @@ const AlarmStatus: React.FC = () => {
       };
     }
     
-    // Normal status
+    // Status normal
     return {
       level: 'NORMAL',
-      message: 'Water level is within normal range',
+      message: 'Level air dalam rentang normal',
       icon: '✅',
       color: 'text-green-600',
       bgColor: 'bg-green-100',
@@ -66,15 +66,15 @@ const AlarmStatus: React.FC = () => {
   if (!alarmStatus) {
     return (
       <div className="bg-white p-4 rounded-lg shadow-md">
-        <h2 className="text-lg font-semibold text-gray-800 mb-4">Alarm Status</h2>
-        <p className="text-gray-500">Loading data...</p>
+        <h2 className="text-lg font-semibold text-gray-800 mb-4">Status Alarm</h2>
+        <p className="text-gray-500">Memuat data...</p>
       </div>
     );
   }
   
   return (
     <div className="bg-white p-4 rounded-lg shadow-md">
-      <h2 className="text-lg font-semibold text-gray-800 mb-4">Alarm Status</h2>
+      <h2 className="text-lg font-semibold text-gray-800 mb-4">Status Alarm</h2>
       
       <div className={`flex items-center p-4 ${alarmStatus.bgColor} rounded-md`}>
         <div className="mr-4 text-2xl">{alarmStatus.icon}</div>
@@ -95,14 +95,14 @@ const AlarmStatus: React.FC = () => {
       </div>
       
       <div className="mt-4">
-        <h3 className="font-medium text-sm text-gray-700 mb-2">Current Threshold Settings:</h3>
+        <h3 className="font-medium text-sm text-gray-700 mb-2">Pengaturan Ambang Batas Saat Ini:</h3>
         <div className="grid grid-cols-2 gap-2 text-sm">
           <div className="bg-yellow-50 p-2 rounded">
-            <span className="text-yellow-600 font-medium">Warning Level:</span>
+            <span className="text-yellow-600 font-medium">Level Peringatan:</span>
             <span className="ml-1 text-gray-700">{settings.warningLevel} {settings.unit}</span>
           </div>
           <div className="bg-red-50 p-2 rounded">
-            <span className="text-red-600 font-medium">Danger Level:</span>
+            <span className="text-red-600 font-medium">Level Bahaya:</span>
             <span className="ml-1 text-gray-700">{settings.dangerLevel} {settings.unit}</span>
           </div>
         </div>
@@ -110,10 +110,12 @@ const AlarmStatus: React.FC = () => {
       
       {latestAlert && (
         <div className="mt-4 text-sm">
-          <h3 className="font-medium text-gray-700 mb-2">Latest Alert:</h3>
+          <h3 className="font-medium text-gray-700 mb-2">Peringatan Terbaru:</h3>
           <div className={`p-2 rounded ${latestAlert.type === 'danger' ? 'bg-red-50' : 'bg-yellow-50'}`}>
             <p className={latestAlert.type === 'danger' ? 'text-red-600' : 'text-yellow-600'}>
-              {latestAlert.message}
+              {latestAlert.type === 'danger' 
+                ? `Level air telah mencapai ambang bahaya (${latestAlert.level} cm)`
+                : `Level air telah mencapai ambang peringatan (${latestAlert.level} cm)`}
             </p>
             <p className="text-gray-500 text-xs mt-1">
               {new Date(latestAlert.timestamp).toLocaleString()}

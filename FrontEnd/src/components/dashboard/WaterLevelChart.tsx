@@ -13,14 +13,14 @@ import {
 } from 'recharts';
 import { useAppContext } from '@/context/AppContext';
 
-// Define the data structure for waterLevelData
+// Mendefinisikan struktur data untuk waterLevelData
 interface WaterLevelDataPoint {
   timestamp: string;
   level: number;
   unit: string;
 }
 
-// Define custom tooltip props with proper typing
+// Mendefinisikan props tooltip kustom dengan type yang benar
 interface CustomTooltipProps extends TooltipProps<number, string> {
   active?: boolean;
   payload?: Array<{
@@ -31,13 +31,13 @@ interface CustomTooltipProps extends TooltipProps<number, string> {
 const WaterLevelChart: React.FC = () => {
   const { waterLevelData, settings } = useAppContext();
 
-  // Format timestamp for display
+  // Format timestamp untuk ditampilkan
   const formatTimestamp = (timestamp: string) => {
     const date = new Date(timestamp);
     return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
   };
 
-  // Custom tooltip with proper typing and removed unused label parameter
+  // Tooltip kustom dengan type yang benar dan menghapus parameter label yang tidak digunakan
   const CustomTooltip = ({ active, payload }: CustomTooltipProps) => {
     if (active && payload && payload.length) {
       const data = payload[0].payload;
@@ -55,7 +55,7 @@ const WaterLevelChart: React.FC = () => {
 
   return (
     <div className="bg-white p-4 rounded-lg shadow-md">
-      <h2 className="text-lg font-semibold text-gray-800 mb-4">Water Level History</h2>
+      <h2 className="text-lg font-semibold text-gray-800 mb-4">Riwayat Level Air</h2>
       <div className="h-72">
         <ResponsiveContainer width="100%" height="100%">
           <LineChart 
@@ -72,7 +72,7 @@ const WaterLevelChart: React.FC = () => {
             <YAxis 
               domain={[0, settings.maxLevel]} 
               label={{ 
-                value: `Water Level (${settings.unit})`, 
+                value: `Level Air (${settings.unit})`, 
                 angle: -90, 
                 position: 'insideLeft',
                 style: { textAnchor: 'middle' }
@@ -81,28 +81,28 @@ const WaterLevelChart: React.FC = () => {
             <Tooltip content={<CustomTooltip />} />
             <Legend />
             
-            {/* Reference lines for thresholds */}
+            {/* Reference lines untuk ambang batas */}
             <ReferenceLine 
               y={settings.warningLevel} 
-              label="Warning" 
+              label="Peringatan" 
               stroke="orange" 
               strokeDasharray="3 3" 
             />
             <ReferenceLine 
               y={settings.dangerLevel} 
-              label="Danger" 
+              label="Bahaya" 
               stroke="red" 
               strokeDasharray="3 3" 
             />
             <ReferenceLine 
               y={settings.pumpActivationLevel} 
-              label="Pump On" 
+              label="Pompa Aktif" 
               stroke="blue" 
               strokeDasharray="3 3" 
             />
             <ReferenceLine 
               y={settings.pumpDeactivationLevel} 
-              label="Pump Off" 
+              label="Pompa Mati" 
               stroke="green" 
               strokeDasharray="3 3" 
             />
@@ -114,7 +114,7 @@ const WaterLevelChart: React.FC = () => {
               strokeWidth={2}
               dot={{ r: 2 }}
               activeDot={{ r: 6 }}
-              name="Water Level"
+              name="Level Air"
             />
           </LineChart>
         </ResponsiveContainer>

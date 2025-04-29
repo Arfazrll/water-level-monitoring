@@ -13,7 +13,7 @@ const SettingsPage: React.FC = () => {
       <div className="flex items-center justify-center h-full">
         <div className="text-center">
           <div className="inline-block animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-blue-500"></div>
-          <p className="mt-2 text-gray-600">Loading settings...</p>
+          <p className="mt-2 text-gray-600">Memuat pengaturan...</p>
         </div>
       </div>
     );
@@ -22,12 +22,12 @@ const SettingsPage: React.FC = () => {
   return (
     <div className="max-w-7xl mx-auto">
       <div className="mb-6">
-        <h1 className="text-2xl font-bold text-gray-800">Settings</h1>
-        <p className="text-gray-600">Configure system thresholds, notifications, and more</p>
+        <h1 className="text-2xl font-bold text-gray-800">Pengaturan</h1>
+        <p className="text-gray-600">Konfigurasikan ambang batas sistem, notifikasi, dan lainnya</p>
       </div>
 
       <div className="bg-white shadow-md rounded-lg overflow-hidden">
-        {/* Tabs */}
+        {/* Tab */}
         <div className="flex border-b border-gray-200">
           <button
             className={`px-4 py-2 text-sm font-medium ${
@@ -37,7 +37,7 @@ const SettingsPage: React.FC = () => {
             }`}
             onClick={() => setActiveTab('thresholds')}
           >
-            Threshold Settings
+            Pengaturan Ambang Batas
           </button>
           <button
             className={`px-4 py-2 text-sm font-medium ${
@@ -47,7 +47,7 @@ const SettingsPage: React.FC = () => {
             }`}
             onClick={() => setActiveTab('notifications')}
           >
-            Notification Settings
+            Pengaturan Notifikasi
           </button>
           <button
             className={`px-4 py-2 text-sm font-medium ${
@@ -57,30 +57,30 @@ const SettingsPage: React.FC = () => {
             }`}
             onClick={() => setActiveTab('system')}
           >
-            System Settings
+            Pengaturan Sistem
           </button>
         </div>
 
-        {/* Tab Content */}
+        {/* Konten Tab */}
         <div className="p-6">
           {activeTab === 'thresholds' && <ThresholdForm />}
           
           {activeTab === 'notifications' && (
             <div className="space-y-6">
-              <h2 className="text-xl font-semibold text-gray-800 mb-4">Notification Settings</h2>
+              <h2 className="text-xl font-semibold text-gray-800 mb-4">Pengaturan Notifikasi</h2>
               
-              {/* Email Notifications */}
+              {/* Notifikasi Email */}
               <div className="bg-white p-4 rounded-lg border border-gray-200">
-                <h3 className="text-lg font-medium text-gray-800 mb-4">Email Notifications</h3>
+                <h3 className="text-lg font-medium text-gray-800 mb-4">Notifikasi Email</h3>
                 
                 <div className="space-y-4">
                   <div className="flex items-center justify-between">
                     <div>
                       <label className="text-sm font-medium text-gray-700">
-                        Enable Email Notifications
+                        Aktifkan Notifikasi Email
                       </label>
                       <p className="text-xs text-gray-500 mt-1">
-                        Receive alerts and status updates via email
+                        Terima peringatan dan pembaruan status melalui email
                       </p>
                     </div>
                     <div className="relative">
@@ -92,18 +92,18 @@ const SettingsPage: React.FC = () => {
                   
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">
-                      Email Address
+                      Alamat Email
                     </label>
                     <input
                       type="email"
                       className="block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
-                      placeholder="your-email@example.com"
+                      placeholder="email-anda@contoh.com"
                     />
                   </div>
                   
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Notification Types
+                      Jenis Notifikasi
                     </label>
                     <div className="space-y-2">
                       <div className="flex items-center">
@@ -114,7 +114,7 @@ const SettingsPage: React.FC = () => {
                           defaultChecked
                         />
                         <label htmlFor="notify-warning" className="ml-2 text-sm text-gray-700">
-                          Warning level alerts
+                          Peringatan level awas
                         </label>
                       </div>
                       <div className="flex items-center">
@@ -125,7 +125,7 @@ const SettingsPage: React.FC = () => {
                           defaultChecked
                         />
                         <label htmlFor="notify-danger" className="ml-2 text-sm text-gray-700">
-                          Danger level alerts
+                          Peringatan level bahaya
                         </label>
                       </div>
                       <div className="flex items-center">
@@ -135,7 +135,7 @@ const SettingsPage: React.FC = () => {
                           className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
                         />
                         <label htmlFor="notify-system" className="ml-2 text-sm text-gray-700">
-                          System status updates
+                          Pembaruan status sistem
                         </label>
                       </div>
                     </div>
@@ -143,18 +143,18 @@ const SettingsPage: React.FC = () => {
                 </div>
               </div>
               
-              {/* SMS Notifications */}
+              {/* Notifikasi SMS */}
               <div className="bg-white p-4 rounded-lg border border-gray-200">
-                <h3 className="text-lg font-medium text-gray-800 mb-4">SMS Notifications</h3>
+                <h3 className="text-lg font-medium text-gray-800 mb-4">Notifikasi SMS</h3>
                 
                 <div className="space-y-4">
                   <div className="flex items-center justify-between">
                     <div>
                       <label className="text-sm font-medium text-gray-700">
-                        Enable SMS Notifications
+                        Aktifkan Notifikasi SMS
                       </label>
                       <p className="text-xs text-gray-500 mt-1">
-                        Receive urgent alerts via SMS
+                        Terima peringatan mendesak melalui SMS
                       </p>
                     </div>
                     <div className="relative">
@@ -166,30 +166,30 @@ const SettingsPage: React.FC = () => {
                   
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">
-                      Phone Number
+                      Nomor Telepon
                     </label>
                     <input
                       type="tel"
                       className="block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
-                      placeholder="+1 (123) 456-7890"
+                      placeholder="+62 812 3456 7890"
                     />
                   </div>
                   
                   <div>
                     <p className="text-sm text-gray-500">
-                      SMS notifications are only sent for critical alerts to avoid message overload
+                      Notifikasi SMS hanya dikirim untuk peringatan kritis untuk menghindari kelebihan pesan
                     </p>
                   </div>
                 </div>
               </div>
               
-              {/* Save Button */}
+              {/* Tombol Simpan */}
               <div className="flex justify-end">
                 <button
                   type="button"
                   className="px-4 py-2 bg-blue-600 text-white font-medium rounded-md hover:bg-blue-700"
                 >
-                  Save Notification Settings
+                  Simpan Pengaturan Notifikasi
                 </button>
               </div>
             </div>
@@ -197,116 +197,116 @@ const SettingsPage: React.FC = () => {
           
           {activeTab === 'system' && (
             <div className="space-y-6">
-              <h2 className="text-xl font-semibold text-gray-800 mb-4">System Settings</h2>
+              <h2 className="text-xl font-semibold text-gray-800 mb-4">Pengaturan Sistem</h2>
               
-              {/* System settings content */}
+              {/* Konten pengaturan sistem */}
               <div className="space-y-6">
-                {/* Device Settings */}
+                {/* Pengaturan Perangkat */}
                 <div className="bg-white p-4 rounded-lg border border-gray-200">
-                  <h3 className="text-lg font-medium text-gray-800 mb-4">Device Settings</h3>
+                  <h3 className="text-lg font-medium text-gray-800 mb-4">Pengaturan Perangkat</h3>
                   
                   <div className="space-y-4">
                     <div>
                       <label className="block text-sm font-medium text-gray-700 mb-1">
-                        Device Name
+                        Nama Perangkat
                       </label>
                       <input
                         type="text"
                         className="block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
-                        defaultValue="Water Level Monitor"
+                        defaultValue="Monitor Level Air"
                       />
                     </div>
                     
                     <div>
                       <label className="block text-sm font-medium text-gray-700 mb-1">
-                        Sensor Type
+                        Jenis Sensor
                       </label>
                       <select className="block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500">
-                        <option>Ultrasonic</option>
-                        <option>Float</option>
-                        <option>Pressure</option>
+                        <option>Ultrasonik</option>
+                        <option>Pelampung</option>
+                        <option>Tekanan</option>
                       </select>
                     </div>
                     
                     <div>
                       <label className="block text-sm font-medium text-gray-700 mb-1">
-                        Measurement Units
+                        Satuan Pengukuran
                       </label>
                       <select className="block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500">
-                        <option>Centimeters (cm)</option>
-                        <option>Inches (in)</option>
-                        <option>Millimeters (mm)</option>
+                        <option>Sentimeter (cm)</option>
+                        <option>Inci (in)</option>
+                        <option>Milimeter (mm)</option>
                       </select>
                     </div>
                   </div>
                 </div>
                 
-                {/* Data Collection */}
+                {/* Pengumpulan Data */}
                 <div className="bg-white p-4 rounded-lg border border-gray-200">
-                  <h3 className="text-lg font-medium text-gray-800 mb-4">Data Collection</h3>
+                  <h3 className="text-lg font-medium text-gray-800 mb-4">Pengumpulan Data</h3>
                   
                   <div className="space-y-4">
                     <div>
                       <label className="block text-sm font-medium text-gray-700 mb-1">
-                        Reading Interval
+                        Interval Pembacaan
                       </label>
                       <select className="block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500">
-                        <option>Every 5 seconds</option>
-                        <option>Every 10 seconds</option>
-                        <option>Every 30 seconds</option>
-                        <option>Every minute</option>
+                        <option>Setiap 5 detik</option>
+                        <option>Setiap 10 detik</option>
+                        <option>Setiap 30 detik</option>
+                        <option>Setiap menit</option>
                       </select>
                     </div>
                     
                     <div>
                       <label className="block text-sm font-medium text-gray-700 mb-1">
-                        Data Retention
+                        Retensi Data
                       </label>
                       <select className="block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500">
-                        <option>1 week</option>
-                        <option>1 month</option>
-                        <option>3 months</option>
-                        <option>6 months</option>
+                        <option>1 minggu</option>
+                        <option>1 bulan</option>
+                        <option>3 bulan</option>
+                        <option>6 bulan</option>
                       </select>
                     </div>
                   </div>
                 </div>
                 
-                {/* Maintenance */}
+                {/* Pemeliharaan */}
                 <div className="bg-white p-4 rounded-lg border border-gray-200">
-                  <h3 className="text-lg font-medium text-gray-800 mb-4">System Maintenance</h3>
+                  <h3 className="text-lg font-medium text-gray-800 mb-4">Pemeliharaan Sistem</h3>
                   
                   <div className="space-y-4">
                     <button
                       type="button"
                       className="px-4 py-2 bg-yellow-100 text-yellow-800 font-medium rounded-md hover:bg-yellow-200"
                     >
-                      Calibrate Sensor
+                      Kalibrasi Sensor
                     </button>
                     
                     <button
                       type="button"
                       className="px-4 py-2 bg-blue-100 text-blue-800 font-medium rounded-md hover:bg-blue-200"
                     >
-                      Test Alarm System
+                      Uji Sistem Alarm
                     </button>
                     
                     <button
                       type="button"
                       className="px-4 py-2 bg-red-100 text-red-800 font-medium rounded-md hover:bg-red-200"
                     >
-                      Reset System
+                      Reset Sistem
                     </button>
                   </div>
                 </div>
                 
-                {/* Save Button */}
+                {/* Tombol Simpan */}
                 <div className="flex justify-end">
                   <button
                     type="button"
                     className="px-4 py-2 bg-blue-600 text-white font-medium rounded-md hover:bg-blue-700"
                   >
-                    Save System Settings
+                    Simpan Pengaturan Sistem
                   </button>
                 </div>
               </div>

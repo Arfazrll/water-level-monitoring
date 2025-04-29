@@ -22,24 +22,24 @@ const ThresholdForm: React.FC = () => {
   };
   
   const validateForm = (): boolean => {
-    // Reset messages
+    // Reset pesan
     setError(null);
     
-    // Validation rules
+    // Aturan validasi
     if (formState.warningLevel >= formState.dangerLevel) {
-      setError('Warning level must be lower than danger level');
+      setError('Level peringatan harus lebih rendah dari level bahaya');
       return false;
     }
     
     if (formState.pumpDeactivationLevel >= formState.pumpActivationLevel) {
-      setError('Pump deactivation level must be lower than pump activation level');
+      setError('Level deaktivasi pompa harus lebih rendah dari level aktivasi pompa');
       return false;
     }
     
     if (formState.warningLevel > formState.maxLevel || 
         formState.dangerLevel > formState.maxLevel || 
         formState.pumpActivationLevel > formState.maxLevel) {
-      setError('Threshold levels cannot exceed maximum level');
+      setError('Level ambang batas tidak dapat melebihi level maksimum');
       return false;
     }
     
@@ -47,7 +47,7 @@ const ThresholdForm: React.FC = () => {
         formState.dangerLevel < formState.minLevel || 
         formState.pumpActivationLevel < formState.minLevel || 
         formState.pumpDeactivationLevel < formState.minLevel) {
-      setError('Threshold levels cannot be below minimum level');
+      setError('Level ambang batas tidak dapat di bawah level minimum');
       return false;
     }
     
@@ -57,7 +57,7 @@ const ThresholdForm: React.FC = () => {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    // Validate form
+    // Validasi formulir
     if (!validateForm()) {
       return;
     }
@@ -66,15 +66,15 @@ const ThresholdForm: React.FC = () => {
       setIsSubmitting(true);
       await updateThresholds(formState);
       
-      setSuccess('Threshold settings updated successfully');
+      setSuccess('Pengaturan ambang batas berhasil diperbarui');
       
-      // Clear success message after 3 seconds
+      // Hapus pesan sukses setelah 3 detik
       setTimeout(() => {
         setSuccess(null);
       }, 3000);
       
     } catch (err) {
-      setError('Failed to update threshold settings. Please try again.');
+      setError('Gagal memperbarui pengaturan ambang batas. Silakan coba lagi.');
       console.error('Error updating thresholds:', err);
     } finally {
       setIsSubmitting(false);
@@ -83,7 +83,7 @@ const ThresholdForm: React.FC = () => {
   
   return (
     <div className="bg-white p-6 rounded-lg shadow-md">
-      <h2 className="text-xl font-semibold text-gray-800 mb-4">Threshold Settings</h2>
+      <h2 className="text-xl font-semibold text-gray-800 mb-4">Pengaturan Ambang Batas</h2>
       
       {error && (
         <div className="mb-4 p-3 bg-red-100 text-red-700 rounded-md">
@@ -100,10 +100,10 @@ const ThresholdForm: React.FC = () => {
       <form onSubmit={handleSubmit}>
         <div className="space-y-6">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            {/* Warning Level */}
+            {/* Level Peringatan */}
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">
-                Warning Level ({settings.unit})
+                Level Peringatan ({settings.unit})
               </label>
               <div className="relative">
                 <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
@@ -122,14 +122,14 @@ const ThresholdForm: React.FC = () => {
                 />
               </div>
               <p className="mt-1 text-sm text-gray-500">
-                Level at which warning alerts are triggered
+                Level di mana peringatan awas akan terpicu
               </p>
             </div>
             
-            {/* Danger Level */}
+            {/* Level Bahaya */}
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">
-                Danger Level ({settings.unit})
+                Level Bahaya ({settings.unit})
               </label>
               <div className="relative">
                 <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
@@ -148,14 +148,14 @@ const ThresholdForm: React.FC = () => {
                 />
               </div>
               <p className="mt-1 text-sm text-gray-500">
-                Level at which danger alerts are triggered
+                Level di mana peringatan bahaya akan terpicu
               </p>
             </div>
             
-            {/* Pump Activation Level */}
+            {/* Level Aktivasi Pompa */}
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">
-                Pump Activation Level ({settings.unit})
+                Level Aktivasi Pompa ({settings.unit})
               </label>
               <div className="relative">
                 <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
@@ -174,14 +174,14 @@ const ThresholdForm: React.FC = () => {
                 />
               </div>
               <p className="mt-1 text-sm text-gray-500">
-                Level at which the pump will automatically activate
+                Level di mana pompa akan otomatis diaktifkan
               </p>
             </div>
             
-            {/* Pump Deactivation Level */}
+            {/* Level Deaktivasi Pompa */}
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">
-                Pump Deactivation Level ({settings.unit})
+                Level Deaktivasi Pompa ({settings.unit})
               </label>
               <div className="relative">
                 <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
@@ -200,20 +200,20 @@ const ThresholdForm: React.FC = () => {
                 />
               </div>
               <p className="mt-1 text-sm text-gray-500">
-                Level at which the pump will automatically deactivate
+                Level di mana pompa akan otomatis dinonaktifkan
               </p>
             </div>
           </div>
           
-          {/* Max/Min Levels */}
+          {/* Level Max/Min */}
           <div className="border-t border-gray-200 pt-4">
-            <h3 className="text-lg font-medium text-gray-800 mb-3">System Limits</h3>
+            <h3 className="text-lg font-medium text-gray-800 mb-3">Batas Sistem</h3>
             
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              {/* Max Level */}
+              {/* Level Max */}
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Maximum Level ({settings.unit})
+                  Level Maksimum ({settings.unit})
                 </label>
                 <input
                   type="number"
@@ -225,14 +225,14 @@ const ThresholdForm: React.FC = () => {
                   required
                 />
                 <p className="mt-1 text-sm text-gray-500">
-                  Maximum possible water level
+                  Level air maksimum yang mungkin
                 </p>
               </div>
               
-              {/* Min Level */}
+              {/* Level Min */}
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Minimum Level ({settings.unit})
+                  Level Minimum ({settings.unit})
                 </label>
                 <input
                   type="number"
@@ -244,13 +244,13 @@ const ThresholdForm: React.FC = () => {
                   required
                 />
                 <p className="mt-1 text-sm text-gray-500">
-                  Minimum possible water level
+                  Level air minimum yang mungkin
                 </p>
               </div>
             </div>
           </div>
           
-          {/* Submit Button */}
+          {/* Tombol Submit */}
           <div className="flex justify-end">
             <button
               type="submit"
@@ -261,60 +261,60 @@ const ThresholdForm: React.FC = () => {
                   : 'bg-blue-600 hover:bg-blue-700'
               }`}
             >
-              {isSubmitting ? 'Saving...' : 'Save Changes'}
+              {isSubmitting ? 'Menyimpan...' : 'Simpan Perubahan'}
             </button>
           </div>
         </div>
       </form>
       
-      {/* Visual representation of thresholds */}
+      {/* Representasi visual dari ambang batas */}
       <div className="mt-8 border-t border-gray-200 pt-6">
-        <h3 className="text-lg font-medium text-gray-800 mb-4">Threshold Visualization</h3>
+        <h3 className="text-lg font-medium text-gray-800 mb-4">Visualisasi Ambang Batas</h3>
         
         <div className="relative h-64 bg-gradient-to-b from-white to-blue-100 rounded-md border border-gray-300">
-          {/* Max level marker */}
+          {/* Penanda level maksimum */}
           <div className="absolute w-full flex items-center" style={{ top: '0%' }}>
             <div className="h-px w-full bg-gray-400 flex-grow"></div>
-            <div className="bg-gray-200 text-gray-700 text-xs px-1 rounded">Max {formState.maxLevel}{settings.unit}</div>
+            <div className="bg-gray-200 text-gray-700 text-xs px-1 rounded">Maks {formState.maxLevel}{settings.unit}</div>
           </div>
           
-          {/* Danger level marker */}
+          {/* Penanda level bahaya */}
           <div 
             className="absolute w-full flex items-center" 
             style={{ top: `${(1 - formState.dangerLevel / formState.maxLevel) * 100}%` }}
           >
             <div className="h-px w-full bg-red-500 flex-grow"></div>
-            <div className="bg-red-100 text-red-700 text-xs px-1 rounded">Danger {formState.dangerLevel}{settings.unit}</div>
+            <div className="bg-red-100 text-red-700 text-xs px-1 rounded">Bahaya {formState.dangerLevel}{settings.unit}</div>
           </div>
           
-          {/* Warning level marker */}
+          {/* Penanda level peringatan */}
           <div 
             className="absolute w-full flex items-center" 
             style={{ top: `${(1 - formState.warningLevel / formState.maxLevel) * 100}%` }}
           >
             <div className="h-px w-full bg-yellow-500 flex-grow"></div>
-            <div className="bg-yellow-100 text-yellow-700 text-xs px-1 rounded">Warning {formState.warningLevel}{settings.unit}</div>
+            <div className="bg-yellow-100 text-yellow-700 text-xs px-1 rounded">Peringatan {formState.warningLevel}{settings.unit}</div>
           </div>
           
-          {/* Pump activation marker */}
+          {/* Penanda aktivasi pompa */}
           <div 
             className="absolute w-full flex items-center" 
             style={{ top: `${(1 - formState.pumpActivationLevel / formState.maxLevel) * 100}%` }}
           >
             <div className="h-px w-full bg-blue-500 flex-grow"></div>
-            <div className="bg-blue-100 text-blue-700 text-xs px-1 rounded">Pump On {formState.pumpActivationLevel}{settings.unit}</div>
+            <div className="bg-blue-100 text-blue-700 text-xs px-1 rounded">Pompa Aktif {formState.pumpActivationLevel}{settings.unit}</div>
           </div>
           
-          {/* Pump deactivation marker */}
+          {/* Penanda deaktivasi pompa */}
           <div 
             className="absolute w-full flex items-center" 
             style={{ top: `${(1 - formState.pumpDeactivationLevel / formState.maxLevel) * 100}%` }}
           >
             <div className="h-px w-full bg-green-500 flex-grow"></div>
-            <div className="bg-green-100 text-green-700 text-xs px-1 rounded">Pump Off {formState.pumpDeactivationLevel}{settings.unit}</div>
+            <div className="bg-green-100 text-green-700 text-xs px-1 rounded">Pompa Mati {formState.pumpDeactivationLevel}{settings.unit}</div>
           </div>
           
-          {/* Min level marker */}
+          {/* Penanda level minimum */}
           <div className="absolute w-full flex items-center" style={{ top: '100%' }}>
             <div className="h-px w-full bg-gray-400 flex-grow"></div>
             <div className="bg-gray-200 text-gray-700 text-xs px-1 rounded">Min {formState.minLevel}{settings.unit}</div>

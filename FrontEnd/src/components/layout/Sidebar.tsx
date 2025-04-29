@@ -28,7 +28,7 @@ const Sidebar: React.FC = () => {
       ),
     },
     {
-      name: 'History',
+      name: 'Riwayat',
       href: '/history',
       icon: (
         <svg
@@ -47,7 +47,7 @@ const Sidebar: React.FC = () => {
       ),
     },
     {
-      name: 'Settings',
+      name: 'Pengaturan',
       href: '/settings',
       icon: (
         <svg
@@ -79,7 +79,7 @@ const Sidebar: React.FC = () => {
         <div className="flex flex-col h-0 flex-1 bg-gray-800">
           <div className="flex-1 flex flex-col pt-5 pb-4 overflow-y-auto">
             <div className="flex items-center flex-shrink-0 px-4">
-              <h1 className="text-xl font-bold text-white">Water Monitor</h1>
+              <h1 className="text-xl font-bold text-white">Monitor Air</h1>
             </div>
             <nav className="mt-5 flex-1 px-2 bg-gray-800 space-y-1">
               {navigation.map((item) => {
@@ -125,7 +125,7 @@ const Sidebar: React.FC = () => {
                 </svg>
               </div>
               <div className="ml-3">
-                <p className="text-sm font-medium text-white">Water Level System</p>
+                <p className="text-sm font-medium text-white">Sistem Level Air</p>
                 <p className="text-xs font-medium text-gray-300">v1.0.0</p>
               </div>
             </div>
