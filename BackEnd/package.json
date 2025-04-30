@@ -1,15 +1,22 @@
 {
   "name": "backend",
   "version": "1.0.0",
-  "description": "",
-  "main": "index.js",
+  "description": "Water Level Monitoring System Backend",
+  "main": "dist/server.js",
   "scripts": {
+    "build": "tsc",
+    "start": "node dist/server.js",
+    "dev": "ts-node server.ts",
+    "watch": "tsc --watch",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
-  "keywords": [],
+  "keywords": [
+    "water-monitoring",
+    "iot",
+    "sensors"
+  ],
   "author": "",
   "license": "ISC",
-  "type": "commonjs",
   "dependencies": {
     "bcryptjs": "^3.0.2",
     "body-parser": "^2.2.0",
@@ -27,6 +34,7 @@
     "@types/node": "^22.15.3",
     "@types/nodemailer": "^6.4.17",
     "@types/ws": "^8.18.1",
+    "ts-node": "^10.9.2",
     "typescript": "^5.8.3"
   }
 }
