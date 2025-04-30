@@ -3,11 +3,19 @@ import { validateWaterLevelData } from '../../middleware/validate';
 import WaterLevel from '../../models/WaterLevel';
 import Settings from '../../models/Setting';
 import Alert from '../../models/Alert';
-import { protect } from '../../middleware/auth';
 import { sendAlertEmail } from '../../services/emailService';
 import { broadcastWaterLevel, broadcastAlert } from '../../services/wsService';
 
 const router = express.Router();
+
+// Helper function to handle API errors consistently
+const handleError = (res: Response, error: any, message: string): void => {
+  console.error(`${message}:`, error);
+  res.status(500).json({ 
+    message: 'Server error', 
+    details: process.env.NODE_ENV === 'development' ? error.message : undefined
+  });
+};
 
 // @route   GET /api/water-level
 // @desc    Get water level data with optional limit
@@ -25,8 +33,7 @@ router.get('/', async (req: Request, res: Response) => {
     // Return in chronological order (oldest first)
     res.json(waterLevelData.reverse());
   } catch (error) {
-    console.error('Error fetching water level data:', error);
-    res.status(500).json({ message: 'Server error' });
+    handleError(res, error, 'Error fetching water level data');
   }
 });
 
@@ -45,14 +52,22 @@ router.post('/', validateWaterLevelData, async (req: Request, res: Response) => 
     
     await waterLevelReading.save();
     
+    // Log successful save
+    console.log(`Water level recorded: ${level} ${unit || 'cm'}`);
+    
     // Broadcast to WebSocket clients
-    broadcastWaterLevel(waterLevelReading);
+    try {
+      broadcastWaterLevel(waterLevelReading);
+    } catch (wsError) {
+      console.warn('Failed to broadcast water level via WebSocket:', wsError);
+      // Continue execution - WebSocket failure shouldn't stop the API
+    }
     
     // Get current settings to check against thresholds
     const settings = await Settings.findOne();
     
     if (!settings) {
-      res.status(404).json({ message: 'Settings not found' });
+      res.status(404).json({ message: 'Settings not found, using default thresholds' });
       return;
     }
     
@@ -74,40 +89,53 @@ router.post('/', validateWaterLevelData, async (req: Request, res: Response) => 
     
     // Create alert if threshold exceeded
     if (alertType) {
-      const alert = new Alert({
-        level,
-        type: alertType,
-        message: alertMessage,
-        acknowledged: false,
-      });
-      
-      await alert.save();
-      
-      // Broadcast alert to WebSocket clients
-      broadcastAlert(alert);
-      
-      // Send email notification if enabled
-      if (notifications.emailEnabled) {
-        if ((alertType === 'warning' && notifications.notifyOnWarning) || 
-            (alertType === 'danger' && notifications.notifyOnDanger)) {
-          await sendAlertEmail(
-            notifications.emailAddress,
-            `Water Level ${alertType.toUpperCase()} Alert`,
-            alertMessage
-          );
+      try {
+        const alert = new Alert({
+          level,
+          type: alertType,
+          message: alertMessage,
+          acknowledged: false,
+        });
+        
+        await alert.save();
+        console.log(`Alert created: ${alertType} at level ${level}`);
+        
+        // Broadcast alert to WebSocket clients
+        try {
+          broadcastAlert(alert);
+        } catch (wsError) {
+          console.warn('Failed to broadcast alert via WebSocket:', wsError);
         }
+        
+        // Send email notification if enabled
+        if (notifications.emailEnabled) {
+          if ((alertType === 'warning' && notifications.notifyOnWarning) || 
+              (alertType === 'danger' && notifications.notifyOnDanger)) {
+            try {
+              await sendAlertEmail(
+                notifications.emailAddress,
+                `Water Level ${alertType.toUpperCase()} Alert`,
+                alertMessage
+              );
+              console.log(`Alert email sent to ${notifications.emailAddress}`);
+            } catch (emailError) {
+              console.error('Failed to send alert email:', emailError);
+            }
+          }
+        }
+      } catch (alertError) {
+        console.error('Error creating alert:', alertError);
+        // Continue execution - alert failure shouldn't stop the API response
       }
     }
     
     // Handle automatic pump control if in auto mode
     if (pumpMode === 'auto') {
       // Logic for pump control will be handled by a separate service/route
-      // But we'll return the recommendation here
       const shouldActivatePump = level >= thresholds.pumpActivationLevel;
       const shouldDeactivatePump = level <= thresholds.pumpDeactivationLevel;
       
       if (shouldActivatePump) {
-        // This information can be used by the pump control service
         console.log('Auto pump activation recommended');
       } else if (shouldDeactivatePump) {
         console.log('Auto pump deactivation recommended');
@@ -120,8 +148,7 @@ router.post('/', validateWaterLevelData, async (req: Request, res: Response) => 
       alert: alertType ? { type: alertType, message: alertMessage } : null
     });
   } catch (error) {
-    console.error('Error recording water level:', error);
-    res.status(500).json({ message: 'Server error' });
+    handleError(res, error, 'Error recording water level');
   }
 });
 
@@ -141,8 +168,7 @@ router.get('/current', async (req: Request, res: Response) => {
     
     res.json(currentLevel);
   } catch (error) {
-    console.error('Error fetching current water level:', error);
-    res.status(500).json({ message: 'Server error' });
+    handleError(res, error, 'Error fetching current water level');
   }
 });
 

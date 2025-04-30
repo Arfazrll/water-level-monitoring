@@ -1,4 +1,4 @@
-import transporter from '../config/mailer';
+import transporter, { isEmailServiceEnabled } from '../config/mailer';
 
 export const sendAlertEmail = async (
   to: string,
@@ -6,9 +6,22 @@ export const sendAlertEmail = async (
   message: string
 ): Promise<boolean> => {
   try {
+    // Periksa apakah layanan email sudah dikonfigurasi
+    if (!isEmailServiceEnabled()) {
+      console.warn('Notifikasi email dilewati: Layanan email tidak dikonfigurasi');
+      return false;
+    }
+    
     // Don't send if email is empty
     if (!to) {
-      console.warn('Email notification skipped: No recipient email provided');
+      console.warn('Notifikasi email dilewati: Alamat email penerima tidak ada');
+      return false;
+    }
+    
+    // Validasi format email
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(to)) {
+      console.warn(`Notifikasi email dilewati: Format email tidak valid "${to}"`);
       return false;
     }
     
@@ -22,11 +35,11 @@ export const sendAlertEmail = async (
           ${message}
         </p>
         <p style="font-size: 16px; line-height: 1.5; color: #333;">
-          Please check your Water Level Monitoring Dashboard for more details.
+          Silakan periksa Dashboard Pemantauan Ketinggian Air untuk detail lebih lanjut.
         </p>
         <p style="font-size: 14px; color: #777; margin-top: 30px; text-align: center;">
-          This is an automated message from your Water Level Monitoring System. 
-          Do not reply to this email.
+          Ini adalah pesan otomatis dari Sistem Pemantauan Ketinggian Air Anda. 
+          Jangan membalas email ini.
         </p>
       </div>
     `;
@@ -40,10 +53,10 @@ export const sendAlertEmail = async (
       html
     });
     
-    console.log('Alert email sent:', info.messageId);
+    console.log('Email notifikasi berhasil dikirim:', info.messageId);
     return true;
   } catch (error) {
-    console.error('Error sending alert email:', error);
+    console.error('Error saat mengirim email notifikasi:', error);
     return false;
   }
 };
@@ -55,19 +68,32 @@ export const sendPumpNotification = async (
   unit: string = 'cm'
 ): Promise<boolean> => {
   try {
+    // Periksa apakah layanan email sudah dikonfigurasi
+    if (!isEmailServiceEnabled()) {
+      console.warn('Notifikasi pompa dilewati: Layanan email tidak dikonfigurasi');
+      return false;
+    }
+    
     // Don't send if email is empty
     if (!to) {
-      console.warn('Pump notification skipped: No recipient email provided');
+      console.warn('Notifikasi pompa dilewati: Alamat email penerima tidak ada');
+      return false;
+    }
+    
+    // Validasi format email
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(to)) {
+      console.warn(`Notifikasi pompa dilewati: Format email tidak valid "${to}"`);
       return false;
     }
     
     const subject = isActivated 
-      ? 'Water Pump Activated' 
-      : 'Water Pump Deactivated';
+      ? 'Pompa Air Diaktifkan' 
+      : 'Pompa Air Dinonaktifkan';
     
     const message = isActivated
-      ? `The water pump has been automatically activated because the water level reached ${waterLevel} ${unit}.`
-      : `The water pump has been automatically deactivated because the water level dropped to ${waterLevel} ${unit}.`;
+      ? `Pompa air telah diaktifkan secara otomatis karena ketinggian air mencapai ${waterLevel} ${unit}.`
+      : `Pompa air telah dinonaktifkan secara otomatis karena ketinggian air turun menjadi ${waterLevel} ${unit}.`;
     
     // Build HTML email
     const html = `
@@ -79,11 +105,11 @@ export const sendPumpNotification = async (
           ${message}
         </p>
         <p style="font-size: 16px; line-height: 1.5; color: #333;">
-          Current water level: ${waterLevel} ${unit}
+          Ketinggian air saat ini: ${waterLevel} ${unit}
         </p>
         <p style="font-size: 14px; color: #777; margin-top: 30px; text-align: center;">
-          This is an automated message from your Water Level Monitoring System. 
-          Do not reply to this email.
+          Ini adalah pesan otomatis dari Sistem Pemantauan Ketinggian Air Anda. 
+          Jangan membalas email ini.
         </p>
       </div>
     `;
@@ -97,10 +123,10 @@ export const sendPumpNotification = async (
       html
     });
     
-    console.log('Pump notification email sent:', info.messageId);
+    console.log('Email notifikasi pompa berhasil dikirim:', info.messageId);
     return true;
   } catch (error) {
-    console.error('Error sending pump notification email:', error);
+    console.error('Error saat mengirim email notifikasi pompa:', error);
     return false;
   }
 };
