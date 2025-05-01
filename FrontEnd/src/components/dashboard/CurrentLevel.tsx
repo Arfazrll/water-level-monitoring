@@ -1,47 +1,76 @@
-// FrontEnd/src/components/dashboard/CurrentLevel.tsx (Perbaikan)
+// FrontEnd/src/components/dashboard/CurrentLevel.tsx
 
 import React from 'react';
 import { useAppContext } from '@/context/AppContext';
 
+/**
+ * Komponen untuk visualisasi level air real-time dengan kapabilitas degradasi anggun
+ * pada kondisi konektivitas suboptimal
+ */
 const CurrentLevel: React.FC = () => {
-  const { currentLevel, settings, isLoading, error } = useAppContext();
+  const { currentLevel, settings, isLoading, error, refreshData } = useAppContext();
 
-  // Tampilkan loading state
+  // Penanganan status loading dengan indikator visual
   if (isLoading) {
     return (
       <div className="bg-white p-4 rounded-lg shadow-md">
         <h2 className="text-lg font-semibold text-gray-800 mb-4">Level Air Saat Ini</h2>
         <div className="flex justify-center items-center h-64">
           <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-blue-500"></div>
+          <p className="ml-3 text-gray-600">Memuat data sensor...</p>
         </div>
       </div>
     );
   }
 
-  // Tampilkan error state
+  // Penanganan status error dengan resolusi interaktif
   if (error) {
     return (
       <div className="bg-white p-4 rounded-lg shadow-md">
         <h2 className="text-lg font-semibold text-gray-800 mb-4">Level Air Saat Ini</h2>
-        <div className="p-4 bg-red-50 text-red-700 rounded-md">
-          <p>Error: {error}</p>
-          <p className="mt-2 text-sm">Coba muat ulang halaman atau periksa koneksi server.</p>
+        <div className="p-4 bg-red-100 text-red-700 rounded-md">
+          <p className="font-medium">Error: {error}</p>
+          <p className="mt-2 text-sm">
+            Sistem melakukan upaya rekoneksi otomatis. Anomali konektivitas terdeteksi antara layer presentasi dan layer data.
+          </p>
+          <div className="mt-4 flex justify-center">
+            <button
+              onClick={() => refreshData()}
+              className="px-4 py-2 bg-blue-500 text-white rounded-md hover:bg-blue-600 transition-colors"
+            >
+              Inisiasi Reload Manual
+            </button>
+          </div>
         </div>
       </div>
     );
   }
 
-  // Tampilkan data empty state
+  // Penanganan kondisi data tidak tersedia dengan visualisasi informatif
   if (!currentLevel) {
     return (
       <div className="bg-white p-4 rounded-lg shadow-md">
         <h2 className="text-lg font-semibold text-gray-800 mb-4">Level Air Saat Ini</h2>
-        <p className="text-gray-500">Belum ada data level air tersedia.</p>
+        <div className="p-4 bg-yellow-50 border border-yellow-200 rounded-md">
+          <h3 className="font-medium text-yellow-700">Ambiguitas Data Terdeteksi</h3>
+          <p className="mt-2 text-sm text-gray-600">
+            Sistem dalam fase inisialisasi atau menunggu sinyal sensor primer. Kondisi ini dapat terjadi 
+            akibat latensi propagasi data atau ketidakstabilan konektivitas sensor.
+          </p>
+          <div className="mt-4 flex justify-center">
+            <button
+              onClick={() => refreshData()}
+              className="px-4 py-2 bg-blue-500 text-white rounded-md hover:bg-blue-600 transition-colors"
+            >
+              Inisiasi Sinkronisasi Data
+            </button>
+          </div>
+        </div>
       </div>
     );
   }
 
-  // Tentukan status berdasarkan ambang batas
+  // Determinasi status berdasarkan parameter ambang batas
   const getStatusInfo = () => {
     const level = currentLevel.level;
     
@@ -100,10 +129,11 @@ const CurrentLevel: React.FC = () => {
   };
 
   const statusInfo = getStatusInfo();
-  // Kalkulasi persentase untuk visualisasi tangki
+  
+  // Kalkulasi persentase untuk visualisasi tingkat
   const percentage = (currentLevel.level / settings.maxLevel) * 100;
 
-  // Format timestamp
+  // Standardisasi format temporal
   const formattedTime = new Date(currentLevel.timestamp).toLocaleString();
   
   return (
@@ -122,25 +152,25 @@ const CurrentLevel: React.FC = () => {
         </div>
       </div>
 
-      {/* Visualisasi tangki air */}
+      {/* Visualisasi tangki air dengan indikator level dinamis */}
       <div className="w-full h-64 border border-gray-300 rounded-md bg-gray-50 mb-4 relative overflow-hidden">
-        {/* Level air */}
+        {/* Representasi volumetrik level air */}
         <div 
           className="absolute bottom-0 left-0 right-0 transition-all duration-1000"
           style={{ 
             height: `${Math.min(percentage, 100)}%`, 
             backgroundColor: percentage >= 90 
-              ? '#ef4444' // red for danger
+              ? '#ef4444' // merah untuk kondisi bahaya
               : percentage >= 70 
-                ? '#f59e0b' // amber for warning
-                : '#3b82f6' // blue for normal
+                ? '#f59e0b' // amber untuk kondisi awas
+                : '#3b82f6' // biru untuk kondisi normal
           }}
         >
-          {/* Animasi gelombang */}
+          {/* Simulasi gelombang dengan animasi */}
           <div className="wave"></div>
         </div>
         
-        {/* Marker untuk level bahaya */}
+        {/* Indikator ambang batas level bahaya */}
         <div 
           className="absolute w-full h-0.5 bg-red-500 flex items-center"
           style={{ bottom: `${(settings.dangerLevel / settings.maxLevel) * 100}%` }}
@@ -150,7 +180,7 @@ const CurrentLevel: React.FC = () => {
           </span>
         </div>
         
-        {/* Marker untuk level peringatan */}
+        {/* Indikator ambang batas level peringatan */}
         <div 
           className="absolute w-full h-0.5 bg-yellow-500 flex items-center"
           style={{ bottom: `${(settings.warningLevel / settings.maxLevel) * 100}%` }}
@@ -160,7 +190,7 @@ const CurrentLevel: React.FC = () => {
           </span>
         </div>
         
-        {/* Marker untuk pump activation */}
+        {/* Indikator level aktivasi pompa */}
         <div 
           className="absolute w-full h-0.5 bg-blue-500 flex items-center"
           style={{ bottom: `${(settings.pumpActivationLevel / settings.maxLevel) * 100}%` }}
@@ -170,7 +200,7 @@ const CurrentLevel: React.FC = () => {
           </span>
         </div>
 
-        {/* Marker untuk pump deactivation */}
+        {/* Indikator level deaktivasi pompa */}
         <div 
           className="absolute w-full h-0.5 bg-green-500 flex items-center"
           style={{ bottom: `${(settings.pumpDeactivationLevel / settings.maxLevel) * 100}%` }}
@@ -180,7 +210,7 @@ const CurrentLevel: React.FC = () => {
           </span>
         </div>
         
-        {/* Teks level air di tengah */}
+        {/* Visualisasi numerik level air */}
         <div className="absolute inset-0 flex items-center justify-center">
           <div className="bg-white bg-opacity-80 px-2 py-1 rounded text-lg font-bold shadow">
             {currentLevel.level.toFixed(1)} {currentLevel.unit}
@@ -188,6 +218,7 @@ const CurrentLevel: React.FC = () => {
         </div>
       </div>
 
+      {/* Tabulasi informasi parametrik level air */}
       <div className="grid grid-cols-2 gap-4 text-sm text-gray-600">
         <div>
           <span className="font-medium">Pembacaan:</span> {currentLevel.level.toFixed(1)} {currentLevel.unit}

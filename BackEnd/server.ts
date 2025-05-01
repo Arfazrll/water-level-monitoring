@@ -1,4 +1,4 @@
-// BackEnd/server.ts (Perbaikan)
+// BackEnd/server.ts
 
 import express, { Request, Response, NextFunction } from 'express';
 import http from 'http';
@@ -36,17 +36,17 @@ import settingsRoutes from './routes/api/settings';
 import { broadcastWaterLevel, broadcastAlert } from './services/wsService';
 import { sendAlertEmail } from './services/emailService';
 
-// Load environment variables - lakukan ini sebelum kode lainnya
+// Inisialisasi variabel lingkungan - prioritaskan sebelum eksekusi kode lainnya
 dotenv.config();
 
-// Initialize Express
+// Inisialisasi Express
 const app = express();
 const PORT = process.env.PORT || 5000;
 
-// Fungsi untuk menunggu beberapa detik
+// Fungsi utilitas: asynchronous delay
 const wait = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
 
-// Server status tracking
+// Status pelacakan server
 let serverStatus = {
   dbConnected: false,
   emailVerified: false,
@@ -56,7 +56,10 @@ let serverStatus = {
   simulationActive: false
 };
 
-// Connect to Database with retry mechanism
+/**
+ * Koneksi ke database dengan mekanisme retry
+ * Implementasi pattern reliable connectivity dengan exponential backoff
+ */
 const connectWithRetry = async (retries = 5, interval = 5000) => {
   let currentRetry = 0;
   
@@ -70,7 +73,7 @@ const connectWithRetry = async (retries = 5, interval = 5000) => {
       currentRetry++;
       console.error(`Percobaan koneksi database ke-${currentRetry} gagal. Mencoba lagi dalam ${interval/1000} detik...`);
       
-      // Jika MongoDB Atlas gagal, coba MongoDB lokal
+      // Strategi fallback: MongoDB Atlas → MongoDB lokal
       if (process.env.MONGO_URI?.includes('mongodb+srv') && currentRetry === 2) {
         console.log('Mencoba terhubung ke MongoDB lokal...');
         try {
@@ -100,10 +103,13 @@ const connectWithRetry = async (retries = 5, interval = 5000) => {
   return false;
 };
 
-// Handler untuk pembacaan sensor
+/**
+ * Handler untuk pembacaan sensor dengan processing pipeline lengkap
+ * @param data - Data pembacaan sensor
+ */
 const handleSensorReading = async (data: { level: number, unit: string, timestamp: Date }) => {
   try {
-    // Buat objek waterLevel baru
+    // Konstruksi objek waterLevel baru
     const waterLevelReading = new WaterLevel({
       level: data.level,
       unit: data.unit || 'cm',
@@ -112,10 +118,17 @@ const handleSensorReading = async (data: { level: number, unit: string, timestam
     await waterLevelReading.save();
     console.log(`Level air dari sensor tercatat: ${data.level} ${data.unit}`);
     
-    // Broadcast ke WebSocket clients
-    broadcastWaterLevel(waterLevelReading);
+    // Broadcast ke WebSocket clients dengan penanganan error
+    try {
+      const broadcastSuccess = broadcastWaterLevel(waterLevelReading);
+      if (!broadcastSuccess) {
+        console.warn('Failed to broadcast water level via WebSocket (no clients or server not initialized)');
+      }
+    } catch (wsError) {
+      console.warn('Exception when broadcasting water level via WebSocket:', wsError);
+    }
     
-    // Periksa thresholds dan buat alert jika perlu
+    // Analisis threshold dan pembuatan alert
     const settings = await Settings.findOne();
     
     if (settings) {
@@ -123,26 +136,26 @@ const handleSensorReading = async (data: { level: number, unit: string, timestam
       let alertType: 'warning' | 'danger' | null = null;
       let alertMessage = '';
       
-      // Periksa threshold bahaya
+      // Klasifikasi level bahaya
       if (data.level >= thresholds.dangerLevel) {
         alertType = 'danger';
         alertMessage = `Level air telah mencapai ambang BAHAYA (${data.level} ${data.unit})`;
       } 
-      // Periksa threshold peringatan
+      // Klasifikasi level peringatan
       else if (data.level >= thresholds.warningLevel) {
         alertType = 'warning';
         alertMessage = `Level air telah mencapai ambang PERINGATAN (${data.level} ${data.unit})`;
       }
       
-      // Buat peringatan jika threshold terlampaui
+      // Pembuatan peringatan dengan deduplication dan throttling
       if (alertType) {
-        // Cek dulu apakah sudah ada peringatan sejenis yang belum diakui
+        // Cek peringatan sejenis yang masih aktif
         const existingAlert = await Alert.findOne({
           type: alertType,
           acknowledged: false
         }).sort({ createdAt: -1 });
         
-        // Hanya buat peringatan baru jika tidak ada yang aktif atau sudah lebih dari 30 menit
+        // Implementasi throttling: interval minimal 30 menit antara peringatan sejenis
         const shouldCreateNewAlert = !existingAlert || 
           (Date.now() - existingAlert.createdAt.getTime() > 30 * 60 * 1000);
         
@@ -157,13 +170,20 @@ const handleSensorReading = async (data: { level: number, unit: string, timestam
           await alert.save();
           console.log(`Peringatan dibuat: ${alertType} pada level ${data.level}`);
           
-          // Aktifkan buzzer berdasarkan jenis peringatan
+          // Aktivasi buzzer berdasarkan klasifikasi peringatan
           activateBuzzer(alertType);
           
           // Broadcast peringatan ke WebSocket clients
-          broadcastAlert(alert);
+          try {
+            const broadcastSuccess = broadcastAlert(alert);
+            if (!broadcastSuccess) {
+              console.warn('Failed to broadcast alert via WebSocket (no clients or server not initialized)');
+            }
+          } catch (wsError) {
+            console.warn('Exception when broadcasting alert via WebSocket:', wsError);
+          }
           
-          // Kirim notifikasi email jika diaktifkan
+          // Notifikasi email jika diaktifkan
           if (notifications.emailEnabled) {
             if ((alertType === 'warning' && notifications.notifyOnWarning) || 
                 (alertType === 'danger' && notifications.notifyOnDanger)) {
@@ -173,13 +193,14 @@ const handleSensorReading = async (data: { level: number, unit: string, timestam
                   `Peringatan Level Air ${alertType.toUpperCase()}`,
                   alertMessage
                 );
+                console.log(`Alert email sent to ${notifications.emailAddress}`);
               } catch (emailError) {
-                console.error('Gagal mengirim email peringatan:', emailError);
+                console.error('Failed to send alert email:', emailError);
               }
             }
           }
         } else {
-          console.log(`Peringatan ${alertType} sudah ada dan masih aktif, tidak membuat peringatan baru`);
+          console.log(`Peringatan ${alertType} sudah aktif, tidak membuat peringatan baru (throttling applied)`);
         }
       }
     }
@@ -188,27 +209,29 @@ const handleSensorReading = async (data: { level: number, unit: string, timestam
   }
 };
 
-// Middleware
+// Konfigurasi middleware fundamental
 app.use(bodyParser.json());
 app.use(express.urlencoded({ extended: false }));
 
-// CORS middleware yang lebih lengkap
+// Konfigurasi CORS komprehensif untuk kompatibilitas maksimal
 app.use(cors({
-  origin: '*', // Allow all origins for development
+  origin: '*', // Dalam produksi, spesifikasikan domain yang diizinkan
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With'],
-  credentials: true, // Allow credentials
-  maxAge: 86400 // Cache preflight request for 1 day
+  credentials: true, // Izinkan kredensial
+  maxAge: 86400, // Cache preflight request selama 1 hari
+  preflightContinue: false,
+  optionsSuccessStatus: 204
 }));
 
-// Request logging middleware
+// Middleware untuk logging request dengan pengukuran durasi
 app.use((req: Request, res: Response, next: NextFunction) => {
   const start = Date.now();
   
-  // Log request
+  // Log request masuk
   console.log(`[${new Date().toISOString()}] ${req.method} ${req.originalUrl}`);
   
-  // Log response time when finished
+  // Instrumentasi durasi respons
   res.on('finish', () => {
     const duration = Date.now() - start;
     console.log(`[${new Date().toISOString()}] ${req.method} ${req.originalUrl} ${res.statusCode} ${duration}ms`);
@@ -217,7 +240,7 @@ app.use((req: Request, res: Response, next: NextFunction) => {
   next();
 });
 
-// Error handling middleware
+// Middleware untuk penanganan error global
 app.use((err: Error, req: Request, res: Response, next: NextFunction) => {
   console.error('Error yang tidak tertangani:', err);
   res.status(500).json({ 
@@ -227,7 +250,7 @@ app.use((err: Error, req: Request, res: Response, next: NextFunction) => {
   });
 });
 
-// Routes
+// Registrasi rute API
 app.use('/api/auth', authRoutes);
 app.use('/api/water-level', waterLevelRoutes);
 app.use('/api/alerts', alertsRoutes);
@@ -235,12 +258,12 @@ app.use('/api/pump', pumpRoutes);
 app.use('/api/settings', settingsRoutes);
 app.use('/api/esp32', esp32Routes);
 
-// Basic root route
+// Endpoint root untuk healthcheck
 app.get('/', (req: Request, res: Response) => {
   res.send('API Pemantauan Ketinggian Air sedang berjalan...');
 });
 
-// Status endpoint yang ditingkatkan
+// Endpoint status server dengan metrik komprehensif
 app.get('/api/status', (req: Request, res: Response) => {
   const wsStatus = getWebSocketStatus();
   
@@ -275,7 +298,7 @@ app.get('/api/status', (req: Request, res: Response) => {
   });
 });
 
-// Add testing endpoint
+// Endpoint pengujian untuk verifikasi ketersediaan API
 app.get('/api/test', (req: Request, res: Response) => {
   res.json({
     success: true,
@@ -284,15 +307,18 @@ app.get('/api/test', (req: Request, res: Response) => {
   });
 });
 
-// Create HTTP server
+// Inisialisasi server HTTP
 const server = http.createServer(app);
 
-// Start the server
+/**
+ * Fungsi inisialisasi server dengan sekuens startup terstruktur
+ * Implementasi pattern graceful startup dengan fallback modes
+ */
 const startServer = async () => {
-  // Coba terhubung ke database terlebih dahulu
+  // Inisialisasi koneksi database dengan mekanisme retry
   await connectWithRetry(3, 3000);
   
-  // Coba verifikasi koneksi email
+  // Verifikasi konektivitas email
   try {
     const emailConnected = await verifyEmailConnection();
     serverStatus.emailVerified = emailConnected;
@@ -306,59 +332,66 @@ const startServer = async () => {
     console.warn('Layanan notifikasi email tidak akan tersedia.');
   }
   
-  // Inisialisasi WebSocket server
+  // Inisialisasi WebSocket server dengan penanganan error
   try {
     initWebSocketServer(server);
     serverStatus.wsInitialized = true;
+    console.log('WebSocket server initialized successfully');
   } catch (error) {
     console.error('Error initializing WebSocket server:', error);
+    console.error('Detail error:', error instanceof Error ? error.message : 'Unknown error');
+    console.error('Stack trace:', error instanceof Error ? error.stack : 'No stack trace');
     serverStatus.wsInitialized = false;
+    console.warn('Application will run without WebSocket functionality');
   }
   
-  // Inisialisasi sensor
+  // Inisialisasi sensor berdasarkan mode operasional
   if (process.env.NODE_ENV === 'production' && process.env.SIMULATE_SENSOR !== 'true') {
-    // Inisialisasi sensor fisik
+    // Inisialisasi untuk sensor fisik dalam lingkungan produksi
     try {
       initSensor();
       serverStatus.sensorInitialized = true;
       
-      // Listen untuk pembacaan sensor
+      // Registrasi event handler untuk pembacaan sensor
       sensorEvents.on('reading', handleSensorReading);
       
       console.log('Sensor hardware diinisialisasi');
     } catch (error) {
       console.error('Error initializing sensor hardware:', error);
       serverStatus.sensorInitialized = false;
+      console.warn('Fallback to simulation mode due to sensor initialization failure');
+      process.env.SIMULATE_SENSOR = 'true';
     }
   } else {
     console.log('Berjalan dalam mode simulasi sensor');
   }
   
-  // Mulai server
+  // Inisialisasi listener server
   server.listen(PORT, () => {
     console.log(`Server berjalan di port ${PORT}`);
     console.log(`Mode server: ${process.env.NODE_ENV || 'development'}`);
     
-    // Simulate water level readings in development mode
-    if (process.env.NODE_ENV === 'development' && process.env.SIMULATE_SENSOR === 'true') {
+    // Aktivasi simulasi pembacaan sensor dalam mode development
+    if ((process.env.NODE_ENV === 'development' || !serverStatus.sensorInitialized) && 
+        process.env.SIMULATE_SENSOR === 'true') {
       console.log('Memulai simulasi sensor ketinggian air...');
       serverStatus.simulationActive = true;
       
-      // Simulasi pembacaan setiap 10 detik
+      // Simulasi pembacaan periodik dengan interval 10 detik
       const simulationInterval = setInterval(() => {
         simulateWaterLevelReading(`http://localhost:${PORT}`)
           .catch(error => {
             console.error('Error dalam simulasi ketinggian air:', error);
-            // Jika database tidak terhubung, hentikan simulasi untuk menghindari error log yang berlebihan
+            // Terminasi simulasi jika koneksi database tidak tersedia
             if (error.message && error.message.includes('buffering timed out')) {
               console.warn('Menghentikan simulasi karena koneksi database tidak tersedia');
               clearInterval(simulationInterval);
               serverStatus.simulationActive = false;
             }
           });
-      }, 10000); // Setiap 10 detik
+      }, 10000);
       
-      // Tambahkan listener untuk menghentikan simulasi saat server berhenti
+      // Registrasi signal handler untuk graceful shutdown
       process.on('SIGINT', () => {
         console.log('Menghentikan simulasi...');
         clearInterval(simulationInterval);
@@ -369,22 +402,22 @@ const startServer = async () => {
   });
 };
 
-// Start the server
+// Inisialisasi server dengan penanganan error global
 startServer().catch(err => {
   console.error('Gagal memulai server:', err);
   process.exit(1);
 });
 
-// Handle unhandled promise rejections
+// Penanganan unhandled promise rejections
 process.on('unhandledRejection', (err: Error) => {
   console.error(`Rejection yang tidak tertangani: ${err.message}`);
   console.error(err.stack);
 });
 
-// Handle uncaught exceptions
+// Penanganan uncaught exceptions dengan graceful shutdown
 process.on('uncaughtException', (err: Error) => {
   console.error(`Exception yang tidak tertangani: ${err.message}`);
   console.error(err.stack);
-  // Close server & exit process
+  // Graceful shutdown
   server.close(() => process.exit(1));
 });

@@ -1,12 +1,48 @@
 import { WaterLevelData, AlertData, ThresholdSettings } from './types';
 
-// Gunakan environment variable dengan fallback
+// Gunakan environment variable dengan fallback yang konsisten
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000/api';
 
-// Helper function untuk pemeriksaan respons API
+/**
+ * Implementasi fetch dengan mekanisme retry dan exponential backoff
+ * @param url - URL endpoint API
+ * @param options - Opsi request fetch
+ * @param maxRetries - Jumlah maksimum percobaan
+ * @returns Objek Response dari fetch
+ */
+const fetchWithRetry = async (url: string, options: RequestInit = {}, maxRetries = 3): Promise<Response> => {
+  let retries = 0;
+  let lastError;
+
+  while (retries < maxRetries) {
+    try {
+      const response = await fetch(url, options);
+      return response;
+    } catch (error) {
+      lastError = error;
+      retries++;
+      if (retries >= maxRetries) break;
+      
+      // Exponential backoff dengan jitter untuk mencegah thundering herd
+      const baseDelay = Math.min(1000 * Math.pow(2, retries), 10000);
+      const jitter = baseDelay * 0.2 * (Math.random() - 0.5);
+      const delay = baseDelay + jitter;
+      
+      console.log(`Retry ${retries}/${maxRetries} after ${Math.round(delay)}ms`);
+      await new Promise(resolve => setTimeout(resolve, delay));
+    }
+  }
+  
+  throw lastError;
+};
+
+/**
+ * Penanganan respon API dengan validasi dan ekstraksi data
+ * @param response - Objek Response dari fetch
+ * @returns Data dari respons API
+ */
 const handleApiResponse = async (response: Response) => {
   if (!response.ok) {
-    // Try to get error message from response if possible
     let errorMessage = `API error: ${response.status}`;
     try {
       const errorData = await response.json();
@@ -14,8 +50,7 @@ const handleApiResponse = async (response: Response) => {
         errorMessage = errorData.message;
       }
     } catch {
-      // Ignore JSON parsing error, use default error message
-      // No variable name needed in catch
+      // Ignore JSON parsing error
     }
     
     throw new Error(errorMessage);
@@ -23,9 +58,7 @@ const handleApiResponse = async (response: Response) => {
   
   const data = await response.json();
   
-  // Handle API response format variations
-  // Some endpoints return { success, message, data }
-  // Others return data directly
+  // Penanganan variasi format respons API
   if (data && data.hasOwnProperty('success')) {
     if (!data.success) {
       throw new Error(data.message || 'API request failed');
@@ -36,14 +69,49 @@ const handleApiResponse = async (response: Response) => {
   return data;
 };
 
-// Fetch water level data
+/**
+ * Pengujian konektivitas server
+ * @returns Status keberhasilan koneksi
+ */
+export async function testServerConnection(): Promise<boolean> {
+  try {
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 5000);
+    
+    const response = await fetchWithRetry(`${API_BASE_URL}/status`, { 
+      method: 'GET',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      signal: controller.signal
+    });
+    
+    clearTimeout(timeoutId);
+    
+    if (!response.ok) {
+      return false;
+    }
+    
+    await response.json();
+    return true;
+  } catch (error) {
+    console.error('Server connection test failed:', error);
+    return false;
+  }
+}
+
+/**
+ * Pengambilan data level air
+ * @param limit - Batas jumlah data yang diambil
+ * @returns Array data level air
+ */
 export async function fetchWaterLevelData(limit?: number): Promise<WaterLevelData[]> {
   try {
     const url = limit 
       ? `${API_BASE_URL}/water-level?limit=${limit}` 
       : `${API_BASE_URL}/water-level`;
     
-    const response = await fetch(url);
+    const response = await fetchWithRetry(url);
     return handleApiResponse(response);
   } catch (error) {
     console.error('Error fetching water level data:', error);
@@ -51,10 +119,13 @@ export async function fetchWaterLevelData(limit?: number): Promise<WaterLevelDat
   }
 }
 
-// Fetch alerts
+/**
+ * Pengambilan data peringatan
+ * @returns Array data peringatan
+ */
 export async function fetchAlerts(): Promise<AlertData[]> {
   try {
-    const response = await fetch(`${API_BASE_URL}/alerts`);
+    const response = await fetchWithRetry(`${API_BASE_URL}/alerts`);
     return handleApiResponse(response);
   } catch (error) {
     console.error('Error fetching alerts:', error);
@@ -62,10 +133,13 @@ export async function fetchAlerts(): Promise<AlertData[]> {
   }
 }
 
-// Fetch threshold settings
+/**
+ * Pengambilan pengaturan ambang batas
+ * @returns Objek pengaturan ambang batas
+ */
 export async function fetchSettings(): Promise<ThresholdSettings> {
   try {
-    const response = await fetch(`${API_BASE_URL}/settings`);
+    const response = await fetchWithRetry(`${API_BASE_URL}/settings`);
     return handleApiResponse(response);
   } catch (error) {
     console.error('Error fetching settings:', error);
@@ -73,10 +147,14 @@ export async function fetchSettings(): Promise<ThresholdSettings> {
   }
 }
 
-// Update threshold settings
+/**
+ * Pembaruan pengaturan ambang batas
+ * @param settings - Objek pengaturan yang akan diperbarui
+ * @returns Objek pengaturan yang telah diperbarui
+ */
 export async function updateSettings(settings: ThresholdSettings): Promise<ThresholdSettings> {
   try {
-    const response = await fetch(`${API_BASE_URL}/settings`, {
+    const response = await fetchWithRetry(`${API_BASE_URL}/settings`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -91,73 +169,81 @@ export async function updateSettings(settings: ThresholdSettings): Promise<Thres
   }
 }
 
-// Acknowledge alert
+/**
+ * Pengakuan peringatan
+ * @param alertId - ID peringatan yang akan diakui
+ * @returns Objek status operasi
+ */
 export async function acknowledgeAlert(alertId: string): Promise<{ success: boolean, message: string }> {
   try {
-    // Validate alertId first
+    // Validasi ID peringatan
     if (!alertId || alertId === 'undefined' || alertId === 'null') {
       console.error('Invalid alert ID:', alertId);
       return { 
         success: false, 
-        message: 'Invalid alert ID. Please try again or refresh the page.'
+        message: 'ID peringatan tidak valid. Silakan coba lagi atau muat ulang halaman.'
       };
     }
     
-    console.log(`Sending acknowledge request for alert ID: ${alertId}`);
+    console.log(`Mengirim permintaan pengakuan untuk ID peringatan: ${alertId}`);
     
-    const response = await fetch(`${API_BASE_URL}/alerts/${alertId}/acknowledge`, {
+    const response = await fetchWithRetry(`${API_BASE_URL}/alerts/${alertId}/acknowledge`, {
       method: 'PUT',
       headers: {
         'Content-Type': 'application/json',
       }
     });
     
-    // Just await the response handling without storing unused data
     await handleApiResponse(response);
     
     return { 
       success: true, 
-      message: 'Alert successfully acknowledged'
+      message: 'Peringatan berhasil diakui'
     };
   } catch (error) {
     console.error('Error acknowledging alert:', error);
     return { 
       success: false, 
-      message: error instanceof Error ? error.message : 'Unknown error occurred'
+      message: error instanceof Error ? error.message : 'Terjadi kesalahan yang tidak diketahui'
     };
   }
 }
 
-// Acknowledge all alerts
+/**
+ * Pengakuan semua peringatan
+ * @returns Objek status operasi
+ */
 export async function acknowledgeAllAlerts(): Promise<{ success: boolean, message: string }> {
   try {
-    const response = await fetch(`${API_BASE_URL}/alerts/acknowledge-all`, {
+    const response = await fetchWithRetry(`${API_BASE_URL}/alerts/acknowledge-all`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
       }
     });
     
-    // Just await the response handling without storing unused data
     await handleApiResponse(response);
     
     return {
       success: true,
-      message: 'All alerts successfully acknowledged'
+      message: 'Semua peringatan berhasil diakui'
     };
   } catch (error) {
     console.error('Error acknowledging all alerts:', error);
     return {
       success: false,
-      message: error instanceof Error ? error.message : 'Unknown error occurred'
+      message: error instanceof Error ? error.message : 'Terjadi kesalahan yang tidak diketahui'
     };
   }
 }
 
-// Control pump
+/**
+ * Kontrol status pompa
+ * @param isActive - Status aktivasi pompa
+ */
 export async function controlPump(isActive: boolean): Promise<void> {
   try {
-    const response = await fetch(`${API_BASE_URL}/pump/control`, {
+    const response = await fetchWithRetry(`${API_BASE_URL}/pump/control`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -172,10 +258,13 @@ export async function controlPump(isActive: boolean): Promise<void> {
   }
 }
 
-// Set pump mode
+/**
+ * Pengaturan mode pompa
+ * @param mode - Mode operasi pompa
+ */
 export async function setPumpMode(mode: 'auto' | 'manual'): Promise<void> {
   try {
-    const response = await fetch(`${API_BASE_URL}/pump/mode`, {
+    const response = await fetchWithRetry(`${API_BASE_URL}/pump/mode`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -190,35 +279,16 @@ export async function setPumpMode(mode: 'auto' | 'manual'): Promise<void> {
   }
 }
 
-// Fetch pump status
+/**
+ * Pengambilan status pompa
+ * @returns Objek status pompa
+ */
 export async function fetchPumpStatus() {
   try {
-    const response = await fetch(`${API_BASE_URL}/pump/status`);
+    const response = await fetchWithRetry(`${API_BASE_URL}/pump/status`);
     return handleApiResponse(response);
   } catch (error) {
     console.error('Error fetching pump status:', error);
     throw error;
-  }
-}
-
-// Test server connection
-export async function testServerConnection(): Promise<boolean> {
-  try {
-    const response = await fetch(`${API_BASE_URL}/status`, { 
-      method: 'GET',
-      headers: {
-        'Content-Type': 'application/json',
-      }
-    });
-    
-    if (!response.ok) {
-      return false;
-    }
-    
-    await response.json();
-    return true;
-  } catch (error) {
-    console.error('Server connection test failed:', error);
-    return false;
   }
 }

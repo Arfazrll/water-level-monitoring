@@ -1,83 +1,102 @@
-// BackEnd/services/wsService.ts (Perbaikan)
-
 import WebSocket, { WebSocketServer } from 'ws';
 import http from 'http';
 import { WaterLevel } from '../models/WaterLevel';
 import { Alert } from '../models/Alert';
 import { ThresholdSettings } from '../models/Setting';
 
-// Define PumpStatus interface
+// Definisi antarmuka status pompa
 interface PumpStatus {
   isActive: boolean;
   mode: 'auto' | 'manual';
   lastActivated: string | null;
 }
 
-// Pakai variabel lokal untuk websocket server, private di module ini
+// Variabel server WebSocket dengan enkapsulasi privat
 let wss: WebSocketServer | null = null;
 
-// Set untuk melacak koneksi client aktif
+// Struktur data untuk pelacakan koneksi klien
 const connectedClients = new Set<WebSocket>();
 
-// Status koneksi untuk monitoring
+// Objek status untuk pemantauan kondisi server
 let wsStatus = {
   isInitialized: false,
   activeConnections: 0,
-  lastBroadcast: null as Date | null
+  lastBroadcast: null as Date | null,
+  connectionErrors: 0,
+  lastErrorTimestamp: null as Date | null
 };
 
-// Initialize WebSocket server
+/**
+ * Inisialisasi server WebSocket dengan konfigurasi optimal
+ * @param server - Instance server HTTP untuk integrasi WebSocket
+ * @returns Instance WebSocketServer yang telah dikonfigurasi
+ */
 export const initWebSocketServer = (server: http.Server): WebSocketServer => {
   try {
-    wss = new WebSocketServer({ server });
+    wss = new WebSocketServer({ 
+      server,
+      path: '/ws',
+      perMessageDeflate: {
+        zlibDeflateOptions: {
+          chunkSize: 1024,
+          memLevel: 7,
+          level: 3
+        },
+        zlibInflateOptions: {
+          chunkSize: 10 * 1024
+        },
+        threshold: 1024
+      }
+    });
     wsStatus.isInitialized = true;
+    
+    console.log('Server WebSocket berhasil diinisialisasi pada jalur: /ws');
     
     wss.on('connection', (ws: WebSocket, req: http.IncomingMessage) => {
       const clientIp = req.socket.remoteAddress || 'unknown';
-      console.log(`Client connected to WebSocket from ${clientIp}`);
+      console.log(`Klien terhubung ke WebSocket dari ${clientIp}`);
       
-      // Tambahkan ke set koneksi
+      // Tambahkan ke set koneksi aktif
       connectedClients.add(ws);
       wsStatus.activeConnections = connectedClients.size;
       
-      // Send initial connection confirmation
+      // Kirim konfirmasi koneksi inisial
       try {
         sendToClient(ws, {
           type: 'connection',
           data: { 
             status: 'connected', 
             timestamp: new Date().toISOString(),
-            message: 'Connected to Water Monitoring WebSocket Server'
+            message: 'Terhubung ke Server WebSocket Monitor Air'
           }
         });
       } catch (error) {
-        console.error('Error sending connection confirmation:', error);
+        console.error('Error mengirim konfirmasi koneksi:', error);
       }
       
-      // Handle client messages with improved error handling
+      // Penanganan pesan masuk dari klien
       ws.on('message', (message: WebSocket.Data) => {
         try {
-          console.log(`Received WebSocket message: ${message}`);
+          console.log(`Menerima pesan WebSocket: ${message}`);
           
-          // Validasi message
+          // Validasi format pesan
           if (!message) {
-            console.warn('Received empty WebSocket message');
+            console.warn('Menerima pesan WebSocket kosong');
             return;
           }
           
-          // Try to parse the message
+          // Parsing pesan dengan validasi
           const data = JSON.parse(message.toString());
           
           if (!data || !data.type) {
-            throw new Error('Invalid message format: missing type field');
+            throw new Error('Format pesan tidak valid: field type tidak ditemukan');
           }
           
-          // Handle specific message types
+          // Implementasi pemrosesan berdasarkan tipe pesan
           if (data.type === 'acknowledgeAlert') {
-            // Validate the alert ID
+            // Validasi ID peringatan
             if (!data.alertId || data.alertId === 'undefined' || data.alertId === 'null') {
-              console.error('Invalid alert ID in WebSocket message:', data);
-              // Send error response back to client
+              console.error('ID peringatan tidak valid dalam pesan WebSocket:', data);
               sendToClient(ws, {
                 type: 'error',
                 data: { message: 'ID peringatan tidak valid', timestamp: new Date().toISOString() }
@@ -85,31 +104,25 @@ export const initWebSocketServer = (server: http.Server): WebSocketServer => {
               return;
             }
             
-            // Handle alert acknowledgment - would need to implement API call here
-            console.log(`WebSocket request to acknowledge alert ID: ${data.alertId}`);
+            console.log(`Permintaan WebSocket untuk mengakui peringatan ID: ${data.alertId}`);
             
-            // Acknowledge success message
+            // Respon konfirmasi
             sendToClient(ws, {
               type: 'acknowledgeSuccess',
               data: { 
                 alertId: data.alertId, 
-                message: 'Peringatan berhasil diketahui',
+                message: 'Peringatan berhasil diakui',
                 timestamp: new Date().toISOString() 
               }
             });
-          }
-          
-          // Ping/pong for keep-alive check
-          else if (data.type === 'ping') {
+          } else if (data.type === 'ping') {
+            // Respons ping untuk keepalive
             sendToClient(ws, {
               type: 'pong',
               data: { timestamp: new Date().toISOString() }
             });
-          }
-          
-          // Unknown message type
-          else {
-            console.warn(`Unknown WebSocket message type: ${data.type}`);
+          } else {
+            console.warn(`Tipe pesan WebSocket tidak dikenal: ${data.type}`);
             sendToClient(ws, {
               type: 'error',
               data: { 
@@ -119,9 +132,8 @@ export const initWebSocketServer = (server: http.Server): WebSocketServer => {
             });
           }
         } catch (error) {
-          console.error('Error handling WebSocket message:', error);
+          console.error('Error memproses pesan WebSocket:', error);
           
-          // Send error response back to client
           try {
             sendToClient(ws, {
               type: 'error',
@@ -131,21 +143,24 @@ export const initWebSocketServer = (server: http.Server): WebSocketServer => {
               }
             });
           } catch (sendError) {
-            console.error('Error sending error response via WebSocket:', sendError);
+            console.error('Error mengirim respon error via WebSocket:', sendError);
           }
         }
       });
       
-      // Handle disconnection
+      // Penanganan pemutusan koneksi
       ws.on('close', (code: number, reason: string) => {
-        console.log(`Client disconnected from WebSocket. Code: ${code}, Reason: ${reason || 'No reason provided'}`);
+        console.log(`Klien terputus dari WebSocket. Kode: ${code}, Alasan: ${reason || 'Tidak ada alasan'}`);
         connectedClients.delete(ws);
         wsStatus.activeConnections = connectedClients.size;
       });
       
-      // Handle WebSocket errors with improved logging
+      // Penanganan error koneksi
       ws.on('error', (error) => {
-        console.error('WebSocket connection error:', error);
+        console.error('Error koneksi WebSocket:', error);
+        wsStatus.connectionErrors++;
+        wsStatus.lastErrorTimestamp = new Date();
+        
         try {
           sendToClient(ws, {
             type: 'error',
@@ -155,17 +170,17 @@ export const initWebSocketServer = (server: http.Server): WebSocketServer => {
             }
           });
         } catch (sendError) {
-          console.error('Failed to send error message to client:', sendError);
+          console.error('Gagal mengirim pesan error ke klien:', sendError);
         }
+        
         connectedClients.delete(ws);
         wsStatus.activeConnections = connectedClients.size;
       });
     });
     
-    console.log('WebSocket server initialized successfully');
+    console.log('Server WebSocket berhasil diinisialisasi');
     
-    // Improved ping mechanism to keep connections alive
-    // Setiap 30 detik kirim ping ke semua client yang terhubung
+    // Implementasi mekanisme ping untuk menjaga koneksi tetap aktif
     const pingInterval = setInterval(() => {
       if (!wss) {
         clearInterval(pingInterval);
@@ -179,17 +194,16 @@ export const initWebSocketServer = (server: http.Server): WebSocketServer => {
           try {
             client.ping('', false, (err) => {
               if (err) {
-                console.error('WebSocket ping error:', err);
+                console.error('Error ping WebSocket:', err);
               }
             });
             activePingCount++;
           } catch (error) {
-            console.error('Error sending ping to client:', error);
-            // Try to terminate bad connection
+            console.error('Error mengirim ping ke klien:', error);
             try {
               client.terminate();
             } catch (termError) {
-              console.error('Error terminating client connection:', termError);
+              console.error('Error terminasi koneksi klien:', termError);
             }
             connectedClients.delete(client);
           }
@@ -198,26 +212,36 @@ export const initWebSocketServer = (server: http.Server): WebSocketServer => {
         }
       });
       
-      // Update status
       wsStatus.activeConnections = connectedClients.size;
-      console.log(`WebSocket ping sent to ${activePingCount} active clients`);
-    }, 30000); // every 30 seconds
+      if (activePingCount > 0) {
+        console.log(`Ping WebSocket dikirim ke ${activePingCount} klien aktif`);
+      }
+    }, 30000); // Interval 30 detik
     
-    // Handle WebSocket server errors
+    // Penanganan error server
     wss.on('error', (error) => {
-      console.error('WebSocket server error:', error);
+      console.error('Error server WebSocket:', error);
       wsStatus.isInitialized = false;
+      wsStatus.connectionErrors++;
+      wsStatus.lastErrorTimestamp = new Date();
     });
     
     return wss;
   } catch (error) {
-    console.error('Failed to initialize WebSocket server:', error);
+    console.error('Gagal menginisialisasi server WebSocket:', error);
     wsStatus.isInitialized = false;
+    wsStatus.connectionErrors++;
+    wsStatus.lastErrorTimestamp = new Date();
     throw error;
   }
 };
 
-// Safe helper function to send messages to clients with error handling
+/**
+ * Fungsi utilitas untuk mengirim data ke klien dengan penanganan error
+ * @param client - Koneksi WebSocket klien
+ * @param data - Data yang akan dikirim
+ * @returns Status keberhasilan pengiriman
+ */
 function sendToClient(client: WebSocket, data: any): boolean {
   if (client.readyState === WebSocket.OPEN) {
     try {
@@ -225,22 +249,27 @@ function sendToClient(client: WebSocket, data: any): boolean {
       client.send(payload);
       return true;
     } catch (error) {
-      console.error('Error sending message to client:', error);
+      console.error('Error mengirim pesan ke klien:', error);
       return false;
     }
   }
   return false;
 }
 
-// Broadcast water level update to all connected clients
+/**
+ * Broadcast data level air ke semua klien terhubung
+ * @param waterLevel - Data level air untuk disiarkan
+ * @returns Status keberhasilan broadcast
+ */
 export const broadcastWaterLevel = (waterLevel: WaterLevel): boolean => {
   if (!wss || !wsStatus.isInitialized) {
-    console.warn('WebSocket server not initialized, cannot broadcast water level');
+    // Pesan log level rendah untuk mengurangi noise
+    console.log('Server WebSocket tidak diinisialisasi, tidak dapat menyiarkan level air');
     return false;
   }
   
   if (!waterLevel) {
-    console.warn('Invalid water level data for broadcast', waterLevel);
+    console.warn('Data level air tidak valid untuk broadcast', waterLevel);
     return false;
   }
   
@@ -260,16 +289,19 @@ export const broadcastWaterLevel = (waterLevel: WaterLevel): boolean => {
   return broadcast(payload);
 };
 
-// Broadcast alert to all connected clients
+/**
+ * Broadcast data peringatan ke semua klien terhubung
+ * @param alert - Data peringatan untuk disiarkan
+ * @returns Status keberhasilan broadcast
+ */
 export const broadcastAlert = (alert: Alert): boolean => {
   if (!wss || !wsStatus.isInitialized) {
-    console.warn('WebSocket server not initialized, cannot broadcast alert');
+    console.log('Server WebSocket tidak diinisialisasi, tidak dapat menyiarkan peringatan');
     return false;
   }
   
-  // Validate alert object
   if (!alert || !alert._id) {
-    console.warn('Invalid alert data for broadcast', alert);
+    console.warn('Data peringatan tidak valid untuk broadcast', alert);
     return false;
   }
   
@@ -292,16 +324,19 @@ export const broadcastAlert = (alert: Alert): boolean => {
   return broadcast(payload);
 };
 
-// Broadcast pump status to all connected clients
+/**
+ * Broadcast status pompa ke semua klien terhubung
+ * @param pumpStatus - Data status pompa untuk disiarkan
+ * @returns Status keberhasilan broadcast
+ */
 export const broadcastPumpStatus = (pumpStatus: PumpStatus): boolean => {
   if (!wss || !wsStatus.isInitialized) {
-    console.warn('WebSocket server not initialized, cannot broadcast pump status');
+    console.log('Server WebSocket tidak diinisialisasi, tidak dapat menyiarkan status pompa');
     return false;
   }
   
-  // Validate pump status object
   if (pumpStatus === undefined || pumpStatus === null) {
-    console.warn('Invalid pump status data for broadcast', pumpStatus);
+    console.warn('Data status pompa tidak valid untuk broadcast', pumpStatus);
     return false;
   }
   
@@ -318,20 +353,22 @@ export const broadcastPumpStatus = (pumpStatus: PumpStatus): boolean => {
   return broadcast(payload);
 };
 
-// Broadcast settings to all connected clients
+/**
+ * Broadcast pengaturan ambang batas ke semua klien terhubung
+ * @param settings - Data pengaturan untuk disiarkan
+ * @returns Status keberhasilan broadcast
+ */
 export const broadcastSettings = (settings: ThresholdSettings): boolean => {
   if (!wss || !wsStatus.isInitialized) {
-    console.warn('WebSocket server not initialized, cannot broadcast settings');
+    console.log('Server WebSocket tidak diinisialisasi, tidak dapat menyiarkan pengaturan');
     return false;
   }
   
-  // Validate settings object
   if (!settings) {
-    console.warn('Invalid settings data for broadcast', settings);
+    console.warn('Data pengaturan tidak valid untuk broadcast', settings);
     return false;
   }
   
-  // Create a copy of settings we can safely modify for broadcast
   const settingsForBroadcast = {
     warningLevel: settings.warningLevel,
     dangerLevel: settings.dangerLevel,
@@ -343,10 +380,7 @@ export const broadcastSettings = (settings: ThresholdSettings): boolean => {
     timestamp: new Date().toISOString()
   };
   
-  // Get pump mode from elsewhere if needed
-  // We can either get it from pumpState or fetch it from database
-  // For now, we'll set a default
-  const mode = 'auto'; // Default value
+  const mode = 'auto'; // Nilai default
   
   const payload = {
     type: 'settings',
@@ -359,18 +393,20 @@ export const broadcastSettings = (settings: ThresholdSettings): boolean => {
   return broadcast(payload);
 };
 
-// Generic broadcast function with improved error handling
+/**
+ * Fungsi generik untuk menyiarkan data ke semua klien terhubung
+ * @param payload - Data untuk disiarkan
+ * @returns Status keberhasilan broadcast
+ */
 function broadcast(payload: any): boolean {
-  if (!wss) {
-    console.warn('WebSocket server not initialized, cannot broadcast');
+  if (!wss || wss.clients.size === 0) {
+    console.log('Tidak ada klien WebSocket terhubung, melewati broadcast');
     return false;
   }
   
+  wsStatus.lastBroadcast = new Date();
   let successCount = 0;
   let failCount = 0;
-  
-  // Update last broadcast timestamp
-  wsStatus.lastBroadcast = new Date();
   
   wss.clients.forEach((client) => {
     if (client.readyState === WebSocket.OPEN) {
@@ -379,26 +415,35 @@ function broadcast(payload: any): boolean {
         client.send(jsonPayload);
         successCount++;
       } catch (error) {
-        console.error('Error broadcasting to client:', error);
+        console.error('Error broadcasting ke klien:', error);
         failCount++;
-        // Don't throw here since we're in a forEach and want to continue
       }
     }
   });
   
+  if (successCount > 0) {
+    console.log(`Broadcast berhasil ke ${successCount} klien`);
+  }
+  
   if (failCount > 0) {
-    console.warn(`Broadcast partially failed: ${successCount} successful, ${failCount} failed`);
+    console.warn(`Broadcast sebagian gagal: ${successCount} sukses, ${failCount} gagal`);
   }
   
   return successCount > 0;
 }
 
-// Menambahkan fungsi untuk menentukan jumlah koneksi aktif
+/**
+ * Mendapatkan jumlah koneksi aktif
+ * @returns Jumlah koneksi klien aktif
+ */
 export const getActiveConnectionCount = (): number => {
   return connectedClients.size;
 };
 
-// Get WebSocket server status
+/**
+ * Mendapatkan status server WebSocket
+ * @returns Objek status server WebSocket
+ */
 export const getWebSocketStatus = () => {
   return {
     ...wsStatus,
@@ -406,7 +451,10 @@ export const getWebSocketStatus = () => {
   };
 };
 
-// Fungsi untuk pengujian koneksi WebSocket
+/**
+ * Pengujian konektivitas server WebSocket
+ * @returns Status ketersediaan server WebSocket
+ */
 export const testWebSocket = (): boolean => {
   return wss !== null && wsStatus.isInitialized;
 };
