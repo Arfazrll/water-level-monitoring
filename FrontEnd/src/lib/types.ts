@@ -29,13 +29,6 @@ export interface PumpStatus {
   lastActivated: string | null;
 }
 
-export interface EmailSettings {
-  enabled: boolean;
-  emailAddress: string;
-  notifyOnWarning: boolean;
-  notifyOnDanger: boolean;
-}
-
 export interface DeviceStatus {
   online: boolean;
   lastSeen: string;

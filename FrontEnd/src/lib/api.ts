@@ -1,8 +1,6 @@
-// FrontEnd/src/lib/api.ts
-
 import { WaterLevelData, AlertData, ThresholdSettings } from './types';
 
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || '/api';
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://172.20.10.6:5000/api';
 
 // Fetch water level data
 export async function fetchWaterLevelData(limit?: number): Promise<WaterLevelData[]> {
@@ -56,47 +54,6 @@ export async function fetchSettings(): Promise<ThresholdSettings> {
   }
 }
 
-// Fetch buzzer status
-export async function fetchBuzzerStatus(): Promise<{ isActive: boolean }> {
-  try {
-    const response = await fetch(`${API_BASE_URL}/test/buzzer/status`);
-    
-    if (!response.ok) {
-      throw new Error(`API error: ${response.status}`);
-    }
-    
-    return await response.json();
-  } catch (error) {
-    console.error('Error fetching buzzer status:', error);
-    
-    // Default to false if error
-    return { isActive: false };
-  }
-}
-
-// Test buzzer
-export async function testBuzzer(duration: number = 3000): Promise<void> {
-  try {
-    const response = await fetch(`${API_BASE_URL}/test/buzzer`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({ 
-        activate: true,
-        duration
-      }),
-    });
-    
-    if (!response.ok) {
-      throw new Error(`API error: ${response.status}`);
-    }
-  } catch (error) {
-    console.error('Error testing buzzer:', error);
-    throw error;
-  }
-}
-
 // Update threshold settings
 export async function updateSettings(settings: ThresholdSettings): Promise<ThresholdSettings> {
   try {
@@ -119,7 +76,7 @@ export async function updateSettings(settings: ThresholdSettings): Promise<Thres
   }
 }
 
-// Acknowledge alert - IMPROVED VERSION
+// Acknowledge alert
 export async function acknowledgeAlert(alertId: string): Promise<{ success: boolean, message: string }> {
   try {
     // Validate alertId first
@@ -180,19 +137,10 @@ export async function acknowledgeAllAlerts(): Promise<{ success: boolean, messag
       }
     });
     
-    // Log response for debugging
-    let responseText = '';
-    try {
-      responseText = await response.text();
-      console.log(`API Response (${response.status}):`, responseText);
-    } catch (e) {
-      console.log(`Could not get response text: ${e}`);
-    }
-    
     if (!response.ok) {
       return {
         success: false,
-        message: `Server error: ${response.status}${responseText ? ` - ${responseText}` : ''}`
+        message: `Server error: ${response.status}`
       };
     }
     
@@ -246,26 +194,6 @@ export async function setPumpMode(mode: 'auto' | 'manual'): Promise<void> {
     }
   } catch (error) {
     console.error('Error setting pump mode:', error);
-    throw error;
-  }
-}
-
-// Calibrate sensor
-export async function calibrateSensor(minLevel: number, maxLevel: number): Promise<void> {
-  try {
-    const response = await fetch(`${API_BASE_URL}/test/sensor-calibration`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({ minLevel, maxLevel }),
-    });
-    
-    if (!response.ok) {
-      throw new Error(`API error: ${response.status}`);
-    }
-  } catch (error) {
-    console.error('Error calibrating sensor:', error);
     throw error;
   }
 }

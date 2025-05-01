@@ -1,3 +1,4 @@
+// BackEnd/scripts/initDb.ts
 import mongoose from 'mongoose';
 import dotenv from 'dotenv';
 import Setting from '../models/Setting';
@@ -19,8 +20,8 @@ async function initializeDatabase() {
       console.log('Creating default settings...');
       await Setting.create({
         thresholds: {
-          warningLevel: 25, // Updated based on ESP32 code
-          dangerLevel: 35,  // Updated based on ESP32 code
+          warningLevel: 30, // Sesuai dengan kode ESP32
+          dangerLevel: 20,  // Sesuai dengan kode ESP32
           maxLevel: 100,
           minLevel: 0,
           pumpActivationLevel: 40,

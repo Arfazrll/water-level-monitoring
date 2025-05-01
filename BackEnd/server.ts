@@ -30,7 +30,6 @@ import waterLevelRoutes from './routes/api/Water-level';
 import alertsRoutes from './routes/api/alerts';
 import pumpRoutes from './routes/api/pump';
 import settingsRoutes from './routes/api/settings';
-import testRoutes from './routes/api/test';
 
 // Import services
 import { broadcastWaterLevel, broadcastAlert } from './services/wsService';
@@ -46,7 +45,7 @@ const PORT = process.env.PORT || 5000;
 // Fungsi untuk menunggu beberapa detik
 const wait = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
 
-app.use('/api/esp32', esp32Routes);
+
 
 // Connect to Database with retry mechanism
 const connectWithRetry = async (retries = 5, interval = 5000) => {
@@ -202,7 +201,7 @@ app.use('/api/water-level', waterLevelRoutes);
 app.use('/api/alerts', alertsRoutes);
 app.use('/api/pump', pumpRoutes);
 app.use('/api/settings', settingsRoutes);
-app.use('/api/test', testRoutes);
+app.use('/api/esp32', esp32Routes);
 
 // Basic root route
 app.get('/', (req: Request, res: Response) => {

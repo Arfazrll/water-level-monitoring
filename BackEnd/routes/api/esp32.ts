@@ -1,3 +1,4 @@
+// BackEnd/routes/api/esp32.ts
 import express, { Request, Response, RequestHandler } from 'express';
 import WaterLevel from '../../models/WaterLevel';
 import Settings from '../../models/Setting';
@@ -16,7 +17,7 @@ const handleEsp32Data: RequestHandler = async (req: Request, res: Response): Pro
     
     if (distance === undefined || typeof distance !== 'number') {
       res.status(400).json({ message: 'Valid distance measurement is required' });
-      return;  // Ensure you return here to prevent any further code execution
+      return;
     }
 
     // Get current settings to determine tank height and thresholds

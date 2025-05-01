@@ -81,18 +81,6 @@ const DashboardPage: React.FC = () => {
                   <span>Lihat Riwayat Peringatan</span>
                 </div>
               </a>
-              
-              <button 
-                className="block w-full py-2 px-4 bg-green-50 hover:bg-green-100 text-green-700 rounded-md transition-colors"
-                onClick={() => alert('Fitur pengujian sistem tidak diimplementasikan dalam demo ini')}
-              >
-                <div className="flex items-center">
-                  <svg className="h-5 w-5 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-                  </svg>
-                  <span>Uji Sistem Alarm</span>
-                </div>
-              </button>
             </div>
           </div>
           

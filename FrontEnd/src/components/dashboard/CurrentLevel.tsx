@@ -1,5 +1,3 @@
-// FrontEnd/src/components/dashboard/CurrentLevel.tsx
-
 import React from 'react';
 import { useAppContext } from '@/context/AppContext';
 
