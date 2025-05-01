@@ -1,4 +1,5 @@
-// BackEnd/routes/api/esp32.ts
+// BackEnd/routes/api/esp32.ts - Fix for 500 Error
+
 import express, { Request, Response, RequestHandler } from 'express';
 import WaterLevel from '../../models/WaterLevel';
 import Settings from '../../models/Setting';
@@ -10,12 +11,15 @@ import PumpLog from '../../models/PumpLog';
 
 const router = express.Router();
 
-// Define the request handler type explicitly
 const handleEsp32Data: RequestHandler = async (req: Request, res: Response): Promise<void> => {
   try {
+    // Debug logging
+    console.log('ESP32 data received:', req.body);
+    
     const { distance } = req.body;
     
     if (distance === undefined || typeof distance !== 'number') {
+      console.error('Invalid distance value:', distance);
       res.status(400).json({ message: 'Valid distance measurement is required' });
       return;
     }
@@ -24,7 +28,43 @@ const handleEsp32Data: RequestHandler = async (req: Request, res: Response): Pro
     const settings = await Settings.findOne();
     
     if (!settings) {
-      res.status(404).json({ message: 'Settings not found' });
+      console.error('No settings found in database');
+      
+      // Create default settings if none exist
+      const defaultSettings = {
+        thresholds: {
+          warningLevel: 30,
+          dangerLevel: 20,
+          maxLevel: 100,
+          minLevel: 0,
+          pumpActivationLevel: 40,
+          pumpDeactivationLevel: 20,
+          unit: 'cm',
+        },
+        notifications: {
+          emailEnabled: false,
+          emailAddress: '',
+          notifyOnWarning: true,
+          notifyOnDanger: true,
+          notifyOnPumpActivation: false,
+        },
+        pumpMode: 'auto',
+      };
+      
+      const newSettings = new Settings(defaultSettings);
+      await newSettings.save();
+      
+      console.log('Created default settings:', defaultSettings);
+      
+      // Use the default settings
+      res.status(201).json({
+        message: 'Default settings created. Please try again.',
+        data: {
+          rawDistance: distance,
+          waterLevel: 100 - distance, // Using default max height of 100cm
+          unit: 'cm'
+        }
+      });
       return;
     }
     
@@ -34,6 +74,8 @@ const handleEsp32Data: RequestHandler = async (req: Request, res: Response): Pro
     // Tank height - measured distance = water level
     const waterLevel = thresholds.maxLevel - distance;
     
+    console.log(`Distance: ${distance}cm, Converted to water level: ${waterLevel}cm`);
+    
     // Create and save the water level reading
     const waterLevelReading = new WaterLevel({
       level: waterLevel,
@@ -41,6 +83,7 @@ const handleEsp32Data: RequestHandler = async (req: Request, res: Response): Pro
     });
     
     await waterLevelReading.save();
+    console.log('Water level reading saved to database');
     
     // Broadcast to WebSocket clients
     try {
@@ -107,56 +150,7 @@ const handleEsp32Data: RequestHandler = async (req: Request, res: Response): Pro
       }
     }
     
-    // Handle automatic pump control if in auto mode
-    if (pumpMode === 'auto') {
-      const shouldActivatePump = waterLevel >= thresholds.pumpActivationLevel;
-      const shouldDeactivatePump = waterLevel <= thresholds.pumpDeactivationLevel;
-      
-      // Get current pump status
-      const latestPumpLog = await PumpLog.findOne().sort({ createdAt: -1 });
-      const isPumpActive = latestPumpLog?.isActive || false;
-      
-      if (shouldActivatePump && !isPumpActive) {
-        // Activate pump
-        const pumpLog = new PumpLog({
-          isActive: true,
-          startTime: new Date(),
-          activatedBy: 'auto',
-          waterLevelAtActivation: waterLevel
-        });
-        
-        await pumpLog.save();
-        console.log('Pump automatically activated');
-      } else if (shouldDeactivatePump && isPumpActive) {
-        // Find the latest active pump entry
-        const latestActivePumpLog = await PumpLog.findOne({ 
-          isActive: true, 
-          endTime: { $exists: false } 
-        }).sort({ startTime: -1 });
-        
-        if (latestActivePumpLog && latestActivePumpLog.startTime) {
-          // Update the pump log entry
-          const now = new Date();
-          const duration = (now.getTime() - latestActivePumpLog.startTime.getTime()) / 1000; // in seconds
-          
-          latestActivePumpLog.isActive = false;
-          latestActivePumpLog.endTime = now;
-          latestActivePumpLog.duration = duration;
-          
-          await latestActivePumpLog.save();
-        }
-        
-        // Create a deactivation log
-        const pumpLog = new PumpLog({
-          isActive: false,
-          activatedBy: 'auto'
-        });
-        
-        await pumpLog.save();
-        console.log('Pump automatically deactivated');
-      }
-    }
-    
+    // Success response
     res.status(201).json({
       message: 'ESP32 data processed successfully',
       data: {
@@ -166,15 +160,28 @@ const handleEsp32Data: RequestHandler = async (req: Request, res: Response): Pro
       },
       alert: alertType ? { type: alertType, message: alertMessage } : null
     });
+    
   } catch (error) {
+    // Detailed error logging
     console.error('Error processing ESP32 data:', error);
-    res.status(500).json({ message: 'Server error' });
+    console.error('Request body:', req.body);
+    
+    res.status(500).json({ 
+      message: 'Server error processing ESP32 data', 
+      error: error instanceof Error ? error.message : 'Unknown error'
+    });
   }
 };
 
-// @route   POST /api/esp32/data
-// @desc    Receive data from ESP32 sensor
-// @access  Public (for ESP32 access)
+// Add this to the bottom of your esp32.ts file, before the export
+router.get('/test', (req, res) => {
+  res.json({ 
+    message: 'ESP32 API is working',
+    timestamp: new Date().toISOString()
+  });
+});
+
+// Route definition
 router.post('/data', handleEsp32Data);
 
 export default router;

@@ -1,7 +1,6 @@
 import { WaterLevelData, AlertData, ThresholdSettings } from './types';
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://172.20.10.6:5000/api';
-
 // Fetch water level data
 export async function fetchWaterLevelData(limit?: number): Promise<WaterLevelData[]> {
   try {
