@@ -20,12 +20,6 @@ export async function fetchWaterLevelData(limit?: number): Promise<WaterLevelDat
     return await response.json();
   } catch (error) {
     console.error('Error fetching water level data:', error);
-    
-    // For development/demo purposes, return mock data if API fails
-    if (process.env.NODE_ENV === 'development') {
-      return generateMockWaterLevelData(limit || 24);
-    }
-    
     throw error;
   }
 }
@@ -42,12 +36,6 @@ export async function fetchAlerts(): Promise<AlertData[]> {
     return await response.json();
   } catch (error) {
     console.error('Error fetching alerts:', error);
-    
-    // For development/demo purposes, return mock data if API fails
-    if (process.env.NODE_ENV === 'development') {
-      return generateMockAlerts();
-    }
-    
     throw error;
   }
 }
@@ -64,20 +52,6 @@ export async function fetchSettings(): Promise<ThresholdSettings> {
     return await response.json();
   } catch (error) {
     console.error('Error fetching settings:', error);
-    
-    // For development/demo purposes, return mock data if API fails
-    if (process.env.NODE_ENV === 'development') {
-      return {
-        warningLevel: 70,
-        dangerLevel: 90,
-        maxLevel: 100,
-        minLevel: 0,
-        pumpActivationLevel: 80,
-        pumpDeactivationLevel: 40,
-        unit: 'cm'
-      };
-    }
-    
     throw error;
   }
 }
@@ -95,15 +69,8 @@ export async function fetchBuzzerStatus(): Promise<{ isActive: boolean }> {
   } catch (error) {
     console.error('Error fetching buzzer status:', error);
     
-    // For development/demo purposes, return mock data if API fails
-    if (process.env.NODE_ENV === 'development') {
-      // Asumsi buzzer aktif jika ada alert yang belum diakui
-      const alerts = await fetchAlerts();
-      const isActive = alerts.some(alert => !alert.acknowledged);
-      return { isActive };
-    }
-    
-    throw error;
+    // Default to false if error
+    return { isActive: false };
   }
 }
 
@@ -155,10 +122,9 @@ export async function updateSettings(settings: ThresholdSettings): Promise<Thres
 // Acknowledge alert - IMPROVED VERSION
 export async function acknowledgeAlert(alertId: string): Promise<{ success: boolean, message: string }> {
   try {
-    // Validasi alertId terlebih dahulu
+    // Validate alertId first
     if (!alertId || alertId === 'undefined' || alertId === 'null') {
       console.error('Invalid alert ID:', alertId);
-      // Return error result instead of throwing
       return { 
         success: false, 
         message: 'Invalid alert ID. Please try again or refresh the page.'
@@ -174,7 +140,7 @@ export async function acknowledgeAlert(alertId: string): Promise<{ success: bool
       }
     });
     
-    // Log respons untuk debugging
+    // Log response for debugging
     let responseText = '';
     try {
       responseText = await response.text();
@@ -214,7 +180,7 @@ export async function acknowledgeAllAlerts(): Promise<{ success: boolean, messag
       }
     });
     
-    // Log respons untuk debugging
+    // Log response for debugging
     let responseText = '';
     try {
       responseText = await response.text();
@@ -302,50 +268,4 @@ export async function calibrateSensor(minLevel: number, maxLevel: number): Promi
     console.error('Error calibrating sensor:', error);
     throw error;
   }
-}
-
-// Generate mock water level data for development
-function generateMockWaterLevelData(count: number): WaterLevelData[] {
-  const data: WaterLevelData[] = [];
-  const now = new Date();
-  
-  for (let i = count - 1; i >= 0; i--) {
-    const timestamp = new Date(now.getTime() - i * 3600000); // hourly data
-    // Generate a wave pattern with some randomness
-    const baseLevel = 50 + 20 * Math.sin(i / 4);
-    const randomness = Math.random() * 10 - 5;
-    const level = Math.max(0, Math.min(100, baseLevel + randomness));
-    
-    data.push({
-      timestamp: timestamp.toISOString(),
-      level: Math.round(level * 10) / 10, // Round to 1 decimal place
-      unit: 'cm'
-    });
-  }
-  
-  return data;
-}
-
-// Generate mock alerts for development
-function generateMockAlerts(): AlertData[] {
-  const alerts: AlertData[] = [
-    {
-      id: '1',
-      timestamp: new Date(Date.now() - 3600000).toISOString(),
-      level: 75.5,
-      type: 'warning',
-      message: 'Level air telah mencapai ambang peringatan (75.5 cm)',
-      acknowledged: true
-    },
-    {
-      id: '2',
-      timestamp: new Date(Date.now() - 1800000).toISOString(),
-      level: 92.3,
-      type: 'danger',
-      message: 'Level air telah mencapai ambang bahaya (92.3 cm)',
-      acknowledged: false
-    }
-  ];
-  
-  return alerts;
 }

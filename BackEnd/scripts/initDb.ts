@@ -19,20 +19,20 @@ async function initializeDatabase() {
       console.log('Creating default settings...');
       await Setting.create({
         thresholds: {
-          warningLevel: 70,
-          dangerLevel: 90,
+          warningLevel: 25, // Updated based on ESP32 code
+          dangerLevel: 35,  // Updated based on ESP32 code
           maxLevel: 100,
           minLevel: 0,
-          pumpActivationLevel: 80,
-          pumpDeactivationLevel: 40,
+          pumpActivationLevel: 40,
+          pumpDeactivationLevel: 20,
           unit: 'cm',
         },
         notifications: {
-          emailEnabled: false,
-          emailAddress: '',
+          emailEnabled: true,
+          emailAddress: process.env.EMAIL_USER || 'your@email.com',
           notifyOnWarning: true,
           notifyOnDanger: true,
-          notifyOnPumpActivation: false,
+          notifyOnPumpActivation: true,
         },
         pumpMode: 'auto',
       });

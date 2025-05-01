@@ -9,6 +9,8 @@ import connectDB from './config/db';
 import { verifyEmailConnection } from './config/mailer';
 import { initWebSocketServer } from './services/wsService';
 import { simulateWaterLevelReading } from './utils/helpers';
+import esp32Routes from './routes/api/esp32';
+import cors from 'cors';
 
 // Import sensor service
 import { 
@@ -43,6 +45,8 @@ const PORT = process.env.PORT || 5000;
 
 // Fungsi untuk menunggu beberapa detik
 const wait = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
+
+app.use('/api/esp32', esp32Routes);
 
 // Connect to Database with retry mechanism
 const connectWithRetry = async (retries = 5, interval = 5000) => {
@@ -165,18 +169,23 @@ app.use(bodyParser.json());
 app.use(express.urlencoded({ extended: false }));
 
 // CORS middleware
-app.use((req: Request, res: Response, next: NextFunction) => {
-  res.header('Access-Control-Allow-Origin', '*');
-  res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE');
-  res.header('Access-Control-Allow-Headers', 'Content-Type, Authorization');
+app.use(cors({
+  origin: '*', // Allow all origins for ESP32 communication
+  methods: ['GET', 'POST', 'PUT', 'DELETE'],
+  allowedHeaders: ['Content-Type', 'Authorization']
+}));
+// app.use((req: Request, res: Response, next: NextFunction) => {
+//   res.header('Access-Control-Allow-Origin', '*');
+//   res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE');
+//   res.header('Access-Control-Allow-Headers', 'Content-Type, Authorization');
   
-  if (req.method === 'OPTIONS') {
-    res.sendStatus(200);
-    return;
-  }
+//   if (req.method === 'OPTIONS') {
+//     res.sendStatus(200);
+//     return;
+//   }
   
-  next();
-});
+//   next();
+// });
 
 // Error handling middleware
 app.use((err: Error, req: Request, res: Response, next: NextFunction) => {

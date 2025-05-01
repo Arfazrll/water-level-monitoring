@@ -4,13 +4,13 @@
   "description": "Water Level Monitoring System Backend",
   "main": "server.ts",
   "scripts": {
-  "build": "tsc",
-  "start": "ts-node server.ts",
-  "dev": "ts-node-dev --respawn server.ts",
-  "init-db": "ts-node scripts/initDb.ts",
-  "watch": "tsc --watch",
-  "test": "echo \"Error: no test specified\" && exit 1"
-},
+    "build": "tsc",
+    "start": "ts-node server.ts",
+    "dev": "ts-node-dev --respawn server.ts",
+    "init-db": "ts-node scripts/initDb.ts",
+    "watch": "tsc --watch",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
   "keywords": [
     "water-monitoring",
     "iot",
@@ -22,6 +22,7 @@
     "@serialport/parser-readline": "^10.5.0",
     "bcryptjs": "^3.0.2",
     "body-parser": "^2.2.0",
+    "cors": "^2.8.5",
     "dotenv": "^16.5.0",
     "express": "^5.1.0",
     "express-async-handler": "^1.2.0",
@@ -33,6 +34,7 @@
   },
   "devDependencies": {
     "@types/bcryptjs": "^2.4.6",
+    "@types/cors": "^2.8.17",
     "@types/express": "^5.0.1",
     "@types/jsonwebtoken": "^9.0.9",
     "@types/node": "^22.15.3",

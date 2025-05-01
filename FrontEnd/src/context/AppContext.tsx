@@ -11,7 +11,9 @@ import {
   updateSettings, 
   acknowledgeAlert,
   acknowledgeAllAlerts,
-  fetchBuzzerStatus
+  fetchBuzzerStatus,
+  controlPump,
+  setPumpMode
 } from '@/lib/api';
 
 // Define types for WebSocket messages
@@ -272,40 +274,40 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     }
   };
 
-  // Toggle pump status
-  const togglePump = async (active: boolean) => {
-    try {
-      // API call to control pump would go here
-      // For example: await controlPump(active);
-      
-      setPumpStatus(prev => ({
-        ...prev,
-        isActive: active,
-        lastActivated: active ? new Date().toISOString() : prev.lastActivated
-      }));
-    } catch (err) {
-      setError('Failed to control pump');
-      console.error('Error controlling pump:', err);
-      throw err;
-    }
-  };
+// Toggle pump status
+const togglePump = async (active: boolean) => {
+  try {
+    // Make real API call to control pump
+    await controlPump(active);
+    
+    setPumpStatus(prev => ({
+      ...prev,
+      isActive: active,
+      lastActivated: active ? new Date().toISOString() : prev.lastActivated
+    }));
+  } catch (err) {
+    setError('Failed to control pump');
+    console.error('Error controlling pump:', err);
+    throw err;
+  }
+};
 
-  // Toggle pump mode
-  const togglePumpMode = async (mode: 'auto' | 'manual') => {
-    try {
-      // API call to change pump mode would go here
-      // For example: await setPumpMode(mode);
-      
-      setPumpStatus(prev => ({
-        ...prev,
-        mode
-      }));
-    } catch (err) {
-      setError('Failed to change pump mode');
-      console.error('Error changing pump mode:', err);
-      throw err;
-    }
-  };
+// Toggle pump mode
+const togglePumpMode = async (mode: 'auto' | 'manual') => {
+  try {
+    // Make real API call to change pump mode
+    await setPumpMode(mode);
+    
+    setPumpStatus(prev => ({
+      ...prev,
+      mode
+    }));
+  } catch (err) {
+    setError('Failed to change pump mode');
+    console.error('Error changing pump mode:', err);
+    throw err;
+  }
+};
   
   // Test buzzer
   const testBuzzer = async (duration: number = 3000) => {
