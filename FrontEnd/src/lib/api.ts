@@ -1,3 +1,5 @@
+// FrontEnd/src/lib/api.ts
+
 import { WaterLevelData, AlertData, ThresholdSettings } from './types';
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || '/api';
@@ -80,6 +82,54 @@ export async function fetchSettings(): Promise<ThresholdSettings> {
   }
 }
 
+// Fetch buzzer status
+export async function fetchBuzzerStatus(): Promise<{ isActive: boolean }> {
+  try {
+    const response = await fetch(`${API_BASE_URL}/test/buzzer/status`);
+    
+    if (!response.ok) {
+      throw new Error(`API error: ${response.status}`);
+    }
+    
+    return await response.json();
+  } catch (error) {
+    console.error('Error fetching buzzer status:', error);
+    
+    // For development/demo purposes, return mock data if API fails
+    if (process.env.NODE_ENV === 'development') {
+      // Asumsi buzzer aktif jika ada alert yang belum diakui
+      const alerts = await fetchAlerts();
+      const isActive = alerts.some(alert => !alert.acknowledged);
+      return { isActive };
+    }
+    
+    throw error;
+  }
+}
+
+// Test buzzer
+export async function testBuzzer(duration: number = 3000): Promise<void> {
+  try {
+    const response = await fetch(`${API_BASE_URL}/test/buzzer`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ 
+        activate: true,
+        duration
+      }),
+    });
+    
+    if (!response.ok) {
+      throw new Error(`API error: ${response.status}`);
+    }
+  } catch (error) {
+    console.error('Error testing buzzer:', error);
+    throw error;
+  }
+}
+
 // Update threshold settings
 export async function updateSettings(settings: ThresholdSettings): Promise<ThresholdSettings> {
   try {
@@ -106,7 +156,7 @@ export async function updateSettings(settings: ThresholdSettings): Promise<Thres
 export async function acknowledgeAlert(alertId: string): Promise<void> {
   try {
     const response = await fetch(`${API_BASE_URL}/alerts/${alertId}/acknowledge`, {
-      method: 'POST',
+      method: 'PUT',
     });
     
     if (!response.ok) {
@@ -114,6 +164,22 @@ export async function acknowledgeAlert(alertId: string): Promise<void> {
     }
   } catch (error) {
     console.error('Error acknowledging alert:', error);
+    throw error;
+  }
+}
+
+// Acknowledge all alerts
+export async function acknowledgeAllAlerts(): Promise<void> {
+  try {
+    const response = await fetch(`${API_BASE_URL}/alerts/acknowledge-all`, {
+      method: 'POST',
+    });
+    
+    if (!response.ok) {
+      throw new Error(`API error: ${response.status}`);
+    }
+  } catch (error) {
+    console.error('Error acknowledging all alerts:', error);
     throw error;
   }
 }
@@ -158,6 +224,26 @@ export async function setPumpMode(mode: 'auto' | 'manual'): Promise<void> {
   }
 }
 
+// Calibrate sensor
+export async function calibrateSensor(minLevel: number, maxLevel: number): Promise<void> {
+  try {
+    const response = await fetch(`${API_BASE_URL}/test/sensor-calibration`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ minLevel, maxLevel }),
+    });
+    
+    if (!response.ok) {
+      throw new Error(`API error: ${response.status}`);
+    }
+  } catch (error) {
+    console.error('Error calibrating sensor:', error);
+    throw error;
+  }
+}
+
 // Generate mock water level data for development
 function generateMockWaterLevelData(count: number): WaterLevelData[] {
   const data: WaterLevelData[] = [];
@@ -188,7 +274,7 @@ function generateMockAlerts(): AlertData[] {
       timestamp: new Date(Date.now() - 3600000).toISOString(),
       level: 75.5,
       type: 'warning',
-      message: 'Water level has reached warning threshold (75.5 cm)',
+      message: 'Level air telah mencapai ambang peringatan (75.5 cm)',
       acknowledged: true
     },
     {
@@ -196,7 +282,7 @@ function generateMockAlerts(): AlertData[] {
       timestamp: new Date(Date.now() - 1800000).toISOString(),
       level: 92.3,
       type: 'danger',
-      message: 'Water level has reached danger threshold (92.3 cm)',
+      message: 'Level air telah mencapai ambang bahaya (92.3 cm)',
       acknowledged: false
     }
   ];

@@ -1,26 +1,20 @@
-import express, { Request, Response } from 'express';
+// Letakkan di: BackEnd/routes/api/Water-level.ts
+
+import express from 'express';
 import { validateWaterLevelData } from '../../middleware/validate';
 import WaterLevel from '../../models/WaterLevel';
 import Settings from '../../models/Setting';
 import Alert from '../../models/Alert';
 import { sendAlertEmail } from '../../services/emailService';
 import { broadcastWaterLevel, broadcastAlert } from '../../services/wsService';
+import { activateBuzzer, deactivateBuzzer } from '../../services/sensorService';
 
 const router = express.Router();
-
-// Helper function to handle API errors consistently
-const handleError = (res: Response, error: any, message: string): void => {
-  console.error(`${message}:`, error);
-  res.status(500).json({ 
-    message: 'Server error', 
-    details: process.env.NODE_ENV === 'development' ? error.message : undefined
-  });
-};
 
 // @route   GET /api/water-level
 // @desc    Get water level data with optional limit
 // @access  Public
-router.get('/', async (req: Request, res: Response) => {
+router.get('/', async (req, res) => {
   try {
     const limit = req.query.limit ? parseInt(req.query.limit as string) : 24;
     
@@ -33,14 +27,15 @@ router.get('/', async (req: Request, res: Response) => {
     // Return in chronological order (oldest first)
     res.json(waterLevelData.reverse());
   } catch (error) {
-    handleError(res, error, 'Error fetching water level data');
+    console.error('Error fetching water level data:', error);
+    res.status(500).json({ message: 'Server error' });
   }
 });
 
 // @route   POST /api/water-level
 // @desc    Add water level reading and check thresholds
 // @access  Private (in production) / Public (for testing)
-router.post('/', validateWaterLevelData, async (req: Request, res: Response) => {
+router.post('/', validateWaterLevelData, async (req, res) => {
   try {
     const { level, unit } = req.body;
     
@@ -52,22 +47,18 @@ router.post('/', validateWaterLevelData, async (req: Request, res: Response) => 
     
     await waterLevelReading.save();
     
-    // Log successful save
-    console.log(`Water level recorded: ${level} ${unit || 'cm'}`);
-    
     // Broadcast to WebSocket clients
     try {
       broadcastWaterLevel(waterLevelReading);
     } catch (wsError) {
       console.warn('Failed to broadcast water level via WebSocket:', wsError);
-      // Continue execution - WebSocket failure shouldn't stop the API
     }
     
     // Get current settings to check against thresholds
     const settings = await Settings.findOne();
     
     if (!settings) {
-      res.status(404).json({ message: 'Settings not found, using default thresholds' });
+      res.status(404).json({ message: 'Settings not found' });
       return;
     }
     
@@ -100,6 +91,9 @@ router.post('/', validateWaterLevelData, async (req: Request, res: Response) => 
         await alert.save();
         console.log(`Alert created: ${alertType} at level ${level}`);
         
+        // Activate buzzer based on alert type
+        activateBuzzer(alertType);
+        
         // Broadcast alert to WebSocket clients
         try {
           broadcastAlert(alert);
@@ -125,7 +119,6 @@ router.post('/', validateWaterLevelData, async (req: Request, res: Response) => 
         }
       } catch (alertError) {
         console.error('Error creating alert:', alertError);
-        // Continue execution - alert failure shouldn't stop the API response
       }
     }
     
@@ -148,14 +141,15 @@ router.post('/', validateWaterLevelData, async (req: Request, res: Response) => 
       alert: alertType ? { type: alertType, message: alertMessage } : null
     });
   } catch (error) {
-    handleError(res, error, 'Error recording water level');
+    console.error('Error recording water level:', error);
+    res.status(500).json({ message: 'Server error' });
   }
 });
 
 // @route   GET /api/water-level/current
 // @desc    Get the most recent water level reading
 // @access  Public
-router.get('/current', async (req: Request, res: Response) => {
+router.get('/current', async (req, res) => {
   try {
     const currentLevel = await WaterLevel.findOne()
       .sort({ createdAt: -1 })
@@ -168,7 +162,8 @@ router.get('/current', async (req: Request, res: Response) => {
     
     res.json(currentLevel);
   } catch (error) {
-    handleError(res, error, 'Error fetching current water level');
+    console.error('Error fetching current water level:', error);
+    res.status(500).json({ message: 'Server error' });
   }
 });
 

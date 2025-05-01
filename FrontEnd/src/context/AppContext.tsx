@@ -1,8 +1,18 @@
+// FrontEnd/src/context/AppContext.tsx
+
 "use client";
 
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import { WaterLevelData, AlertData, ThresholdSettings, PumpStatus, DeviceStatus } from '@/lib/types';
-import { fetchWaterLevelData, fetchAlerts, fetchSettings, updateSettings } from '@/lib/api';
+import { 
+  fetchWaterLevelData, 
+  fetchAlerts, 
+  fetchSettings, 
+  updateSettings, 
+  acknowledgeAlert,
+  acknowledgeAllAlerts,
+  fetchBuzzerStatus
+} from '@/lib/api';
 
 interface AppContextType {
   waterLevelData: WaterLevelData[];
@@ -11,12 +21,15 @@ interface AppContextType {
   settings: ThresholdSettings;
   pumpStatus: PumpStatus;
   deviceStatus: DeviceStatus;
+  buzzerActive: boolean;
   isLoading: boolean;
   error: string | null;
   updateThresholds: (newSettings: Partial<ThresholdSettings>) => Promise<void>;
   acknowledgeAlert: (alertId: string) => Promise<void>;
+  acknowledgeAllAlerts: () => Promise<void>;
   togglePump: (active: boolean) => Promise<void>;
   togglePumpMode: (mode: 'auto' | 'manual') => Promise<void>;
+  testBuzzer: (duration?: number) => Promise<void>;
 }
 
 const defaultSettings: ThresholdSettings = {
@@ -51,6 +64,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   const [settings, setSettings] = useState<ThresholdSettings>(defaultSettings);
   const [pumpStatus, setPumpStatus] = useState<PumpStatus>(defaultPumpStatus);
   const [deviceStatus, setDeviceStatus] = useState<DeviceStatus>(defaultDeviceStatus);
+  const [buzzerActive, setBuzzerActive] = useState<boolean>(false);
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -75,6 +89,16 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         // Fetch alerts
         const alertsData = await fetchAlerts();
         setAlerts(alertsData);
+        
+        // Fetch buzzer status
+        try {
+          const buzzerStatus = await fetchBuzzerStatus();
+          setBuzzerActive(buzzerStatus.isActive);
+        } catch {
+          console.warn('Could not fetch buzzer status');
+          // Set based on unacknowledged alerts
+          setBuzzerActive(alertsData.some(alert => !alert.acknowledged));
+        }
         
         setIsLoading(false);
       } catch (err) {
@@ -115,6 +139,15 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
           // Check for new alerts
           const alertsData = await fetchAlerts();
           setAlerts(alertsData);
+          
+          // Update buzzer status
+          try {
+            const buzzerStatus = await fetchBuzzerStatus();
+            setBuzzerActive(buzzerStatus.isActive);
+          } catch {
+            // Set based on unacknowledged alerts
+            setBuzzerActive(alertsData.some(alert => !alert.acknowledged));
+          }
         }
       } catch (err) {
         console.error('Error fetching real-time updates:', err);
@@ -143,17 +176,48 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   };
 
   // Acknowledge alert
-  const acknowledgeAlert = async (alertId: string) => {
+  const handleAcknowledgeAlert = async (alertId: string) => {
     try {
-      // API call to acknowledge alert would go here
+      await acknowledgeAlert(alertId);
+      
+      // Update alerts in state
       setAlerts(prev => 
         prev.map(alert => 
           alert.id === alertId ? { ...alert, acknowledged: true } : alert
         )
       );
+      
+      // Check if there are still unacknowledged alerts
+      const hasUnacknowledgedAlerts = alerts.some(
+        alert => alert.id !== alertId && !alert.acknowledged
+      );
+      
+      // Update buzzer status if there are no more unacknowledged alerts
+      if (!hasUnacknowledgedAlerts) {
+        setBuzzerActive(false);
+      }
     } catch (err) {
       setError('Failed to acknowledge alert');
       console.error('Error acknowledging alert:', err);
+      throw err;
+    }
+  };
+  
+  // Acknowledge all alerts
+  const handleAcknowledgeAllAlerts = async () => {
+    try {
+      await acknowledgeAllAlerts();
+      
+      // Update all alerts in state
+      setAlerts(prev => 
+        prev.map(alert => ({ ...alert, acknowledged: true }))
+      );
+      
+      // Update buzzer status
+      setBuzzerActive(false);
+    } catch (err) {
+      setError('Failed to acknowledge all alerts');
+      console.error('Error acknowledging all alerts:', err);
       throw err;
     }
   };
@@ -162,6 +226,8 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   const togglePump = async (active: boolean) => {
     try {
       // API call to control pump would go here
+      // For example: await controlPump(active);
+      
       setPumpStatus(prev => ({
         ...prev,
         isActive: active,
@@ -178,6 +244,8 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   const togglePumpMode = async (mode: 'auto' | 'manual') => {
     try {
       // API call to change pump mode would go here
+      // For example: await setPumpMode(mode);
+      
       setPumpStatus(prev => ({
         ...prev,
         mode
@@ -185,6 +253,35 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     } catch (err) {
       setError('Failed to change pump mode');
       console.error('Error changing pump mode:', err);
+      throw err;
+    }
+  };
+  
+  // Test buzzer
+  const testBuzzer = async (duration: number = 3000) => {
+    try {
+      // API call to test buzzer
+      await fetch('/api/test/buzzer', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ 
+          activate: true,
+          duration
+        }),
+      });
+      
+      // Update state temporarily
+      setBuzzerActive(true);
+      
+      // Reset state after duration
+      setTimeout(() => {
+        setBuzzerActive(false);
+      }, duration + 500); // Add a little buffer
+      
+    } catch (err) {
+      console.error('Error testing buzzer:', err);
       throw err;
     }
   };
@@ -196,12 +293,15 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     settings,
     pumpStatus,
     deviceStatus,
+    buzzerActive,
     isLoading,
     error,
     updateThresholds,
-    acknowledgeAlert,
+    acknowledgeAlert: handleAcknowledgeAlert,
+    acknowledgeAllAlerts: handleAcknowledgeAllAlerts,
     togglePump,
-    togglePumpMode
+    togglePumpMode,
+    testBuzzer
   };
 
   return <AppContext.Provider value={value}>{children}</AppContext.Provider>;

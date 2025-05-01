@@ -1,3 +1,5 @@
+// BackEnd/server.ts
+
 import express, { Request, Response, NextFunction } from 'express';
 import http from 'http';
 import dotenv from 'dotenv';
@@ -8,14 +10,32 @@ import { verifyEmailConnection } from './config/mailer';
 import { initWebSocketServer } from './services/wsService';
 import { simulateWaterLevelReading } from './utils/helpers';
 
+// Import sensor service
+// Perbarui imports di server.ts untuk menggunakan mock sensorService
+import { 
+  initSensor, 
+  sensorEvents,
+  activateBuzzer // Tambahkan import activateBuzzer
+} from './services/sensorService';
+
+// Import models 
+import WaterLevel from './models/WaterLevel';
+import Settings from './models/Setting';
+import Alert from './models/Alert';
+
 // Import routes
 import authRoutes from './routes/auth';
 import waterLevelRoutes from './routes/api/Water-level';
 import alertsRoutes from './routes/api/alerts';
 import pumpRoutes from './routes/api/pump';
 import settingsRoutes from './routes/api/settings';
+import testRoutes from './routes/api/test';
 
-// Load environment variables - do this first before any other code
+// Import services
+import { broadcastWaterLevel, broadcastAlert } from './services/wsService';
+import { sendAlertEmail } from './services/emailService';
+
+// Load environment variables - lakukan ini sebelum kode lainnya
 dotenv.config();
 
 // Initialize Express
@@ -67,6 +87,80 @@ const connectWithRetry = async (retries = 5, interval = 5000) => {
   return false;
 };
 
+// Handler untuk pembacaan sensor
+const handleSensorReading = async (data: { level: number, unit: string, timestamp: Date }) => {
+  try {
+    // Buat objek waterLevel baru
+    const waterLevelReading = new WaterLevel({
+      level: data.level,
+      unit: data.unit || 'cm',
+    });
+    
+    await waterLevelReading.save();
+    console.log(`Level air dari sensor tercatat: ${data.level} ${data.unit}`);
+    
+    // Broadcast ke WebSocket clients
+    broadcastWaterLevel(waterLevelReading);
+    
+    // Periksa thresholds dan buat alert jika perlu
+    const settings = await Settings.findOne();
+    
+    if (settings) {
+      const { thresholds, notifications } = settings;
+      let alertType: 'warning' | 'danger' | null = null;
+      let alertMessage = '';
+      
+      // Periksa threshold bahaya
+      if (data.level >= thresholds.dangerLevel) {
+        alertType = 'danger';
+        alertMessage = `Level air telah mencapai ambang BAHAYA (${data.level} ${data.unit})`;
+      } 
+      // Periksa threshold peringatan
+      else if (data.level >= thresholds.warningLevel) {
+        alertType = 'warning';
+        alertMessage = `Level air telah mencapai ambang PERINGATAN (${data.level} ${data.unit})`;
+      }
+      
+      // Buat peringatan jika threshold terlampaui
+      if (alertType) {
+        const alert = new Alert({
+          level: data.level,
+          type: alertType,
+          message: alertMessage,
+          acknowledged: false,
+        });
+        
+        await alert.save();
+        console.log(`Peringatan dibuat: ${alertType} pada level ${data.level}`);
+        
+        // Aktifkan buzzer berdasarkan jenis peringatan
+        activateBuzzer(alertType);
+        
+        // Broadcast peringatan ke WebSocket clients
+        broadcastAlert(alert);
+        
+        // Kirim notifikasi email jika diaktifkan
+        if (notifications.emailEnabled) {
+          if ((alertType === 'warning' && notifications.notifyOnWarning) || 
+              (alertType === 'danger' && notifications.notifyOnDanger)) {
+            try {
+              await sendAlertEmail(
+                notifications.emailAddress,
+                `Peringatan Level Air ${alertType.toUpperCase()}`,
+                alertMessage
+              );
+            } catch (emailError) {
+              console.error('Gagal mengirim email peringatan:', emailError);
+            }
+          }
+        }
+      }
+    }
+  } catch (error) {
+    console.error('Error memproses pembacaan sensor:', error);
+  }
+};
+
 // Middleware
 app.use(bodyParser.json());
 app.use(express.urlencoded({ extended: false }));
@@ -100,6 +194,7 @@ app.use('/api/water-level', waterLevelRoutes);
 app.use('/api/alerts', alertsRoutes);
 app.use('/api/pump', pumpRoutes);
 app.use('/api/settings', settingsRoutes);
+app.use('/api/test', testRoutes);
 
 // Basic root route
 app.get('/', (req: Request, res: Response) => {
@@ -113,26 +208,16 @@ app.get('/api/status', (req: Request, res: Response) => {
     version: '1.0.0',
     time: new Date().toISOString(),
     db_connected: mongoose.connection.readyState === 1,
-    mode: process.env.NODE_ENV || 'development'
+    mode: process.env.NODE_ENV || 'development',
+    sensor_simulation: process.env.SIMULATE_SENSOR === 'true'
   });
-});
-
-// Rute untuk memulai simulasi secara manual
-app.post('/api/simulate', async (req: Request, res: Response) => {
-  try {
-    await simulateWaterLevelReading(`http://localhost:${PORT}`);
-    res.json({ success: true, message: 'Simulasi ketinggian air berhasil' });
-  } catch (error) {
-    console.error('Error saat simulasi:', error);
-    res.status(500).json({ success: false, message: 'Gagal menjalankan simulasi' });
-  }
 });
 
 // Create HTTP server
 const server = http.createServer(app);
 
 // Initialize WebSocket server
-let wsServer = initWebSocketServer(server);
+const wsServer = initWebSocketServer(server);
 
 // Start the server
 const startServer = async () => {
@@ -149,6 +234,19 @@ const startServer = async () => {
   } catch (error) {
     console.error('Error saat memverifikasi koneksi email:', error);
     console.warn('Layanan notifikasi email tidak akan tersedia.');
+  }
+  
+  // Inisialisasi sensor
+  if (process.env.NODE_ENV === 'production' && process.env.SIMULATE_SENSOR !== 'true') {
+    // Inisialisasi sensor fisik
+    initSensor();
+    
+    // Listen untuk pembacaan sensor
+    sensorEvents.on('reading', handleSensorReading);
+    
+    console.log('Sensor hardware diinisialisasi');
+  } else {
+    console.log('Berjalan dalam mode simulasi sensor');
   }
   
   // Mulai server meskipun koneksi gagal

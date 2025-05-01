@@ -1,3 +1,5 @@
+// FrontEnd/src/components/dashboard/CurrentLevel.tsx
+
 import React from 'react';
 import { useAppContext } from '@/context/AppContext';
 
@@ -93,14 +95,70 @@ const CurrentLevel: React.FC = () => {
         </div>
       </div>
 
-      {/* Indikator visual level air */}
-      <div className="w-full bg-gray-200 rounded-full h-6 mb-4">
-        <div
-          className={`h-6 rounded-full ${
-            percentage >= 90 ? 'bg-red-600' : percentage >= 70 ? 'bg-yellow-500' : 'bg-blue-500'
-          }`}
-          style={{ width: `${Math.min(percentage, 100)}%` }}
-        ></div>
+      {/* Visualisasi tangki air */}
+      <div className="w-full h-64 border border-gray-300 rounded-md bg-gray-50 mb-4 relative overflow-hidden">
+        {/* Level air */}
+        <div 
+          className="absolute bottom-0 left-0 right-0 transition-all duration-1000"
+          style={{ 
+            height: `${Math.min(percentage, 100)}%`, 
+            backgroundColor: percentage >= 90 
+              ? '#ef4444' // red for danger
+              : percentage >= 70 
+                ? '#f59e0b' // amber for warning
+                : '#3b82f6' // blue for normal
+          }}
+        >
+          {/* Animasi gelombang */}
+          <div className="wave"></div>
+        </div>
+        
+        {/* Marker untuk level bahaya */}
+        <div 
+          className="absolute w-full h-0.5 bg-red-500 flex items-center"
+          style={{ bottom: `${(settings.dangerLevel / settings.maxLevel) * 100}%` }}
+        >
+          <span className="absolute -right-1 -top-5 bg-red-100 text-red-800 text-xs px-1 rounded">
+            Bahaya ({settings.dangerLevel}{settings.unit})
+          </span>
+        </div>
+        
+        {/* Marker untuk level peringatan */}
+        <div 
+          className="absolute w-full h-0.5 bg-yellow-500 flex items-center"
+          style={{ bottom: `${(settings.warningLevel / settings.maxLevel) * 100}%` }}
+        >
+          <span className="absolute -right-1 -top-5 bg-yellow-100 text-yellow-800 text-xs px-1 rounded">
+            Awas ({settings.warningLevel}{settings.unit})
+          </span>
+        </div>
+        
+        {/* Marker untuk pump activation */}
+        <div 
+          className="absolute w-full h-0.5 bg-blue-500 flex items-center"
+          style={{ bottom: `${(settings.pumpActivationLevel / settings.maxLevel) * 100}%` }}
+        >
+          <span className="absolute -left-1 -top-5 bg-blue-100 text-blue-800 text-xs px-1 rounded">
+            Pompa Aktif ({settings.pumpActivationLevel}{settings.unit})
+          </span>
+        </div>
+
+        {/* Marker untuk pump deactivation */}
+        <div 
+          className="absolute w-full h-0.5 bg-green-500 flex items-center"
+          style={{ bottom: `${(settings.pumpDeactivationLevel / settings.maxLevel) * 100}%` }}
+        >
+          <span className="absolute -left-1 -top-5 bg-green-100 text-green-800 text-xs px-1 rounded">
+            Pompa Mati ({settings.pumpDeactivationLevel}{settings.unit})
+          </span>
+        </div>
+        
+        {/* Teks level air di tengah */}
+        <div className="absolute inset-0 flex items-center justify-center">
+          <div className="bg-white bg-opacity-80 px-2 py-1 rounded text-lg font-bold shadow">
+            {currentLevel.level} {currentLevel.unit}
+          </div>
+        </div>
       </div>
 
       <div className="grid grid-cols-2 gap-4 text-sm text-gray-600">

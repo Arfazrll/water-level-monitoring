@@ -1,3 +1,5 @@
+// FrontEnd/src/components/settings/ThresholdForm.tsx
+
 import React, { useState } from 'react';
 import { useAppContext } from '@/context/AppContext';
 import { ThresholdSettings } from '@/lib/types';
@@ -12,6 +14,14 @@ const ThresholdForm: React.FC = () => {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
+  
+  // State tambahan untuk pengujian perangkat
+  const [isBuzzerTestActive, setIsBuzzerTestActive] = useState(false);
+  const [isSensorCalibrating, setIsSensorCalibrating] = useState(false);
+  const [calibrationValues, setCalibrationValues] = useState({
+    minLevel: settings.minLevel,
+    maxLevel: settings.maxLevel
+  });
   
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
@@ -79,6 +89,86 @@ const ThresholdForm: React.FC = () => {
     } finally {
       setIsSubmitting(false);
     }
+  };
+  
+  // Pengujian buzzer
+  const handleBuzzerTest = async () => {
+    try {
+      setIsBuzzerTestActive(true);
+      // API call untuk menguji buzzer
+      await fetch('/api/test/buzzer', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ 
+          activate: true,
+          duration: 3000 // 3 detik
+        }),
+      });
+      
+      // Buzzer akan otomatis dimatikan oleh API setelah waktu tertentu
+      // Tetapi kita tetap atur state UI setelah timeout
+      setTimeout(() => {
+        setIsBuzzerTestActive(false);
+      }, 3500); // sedikit lebih lama dari durasi sebenarnya untuk memastikan
+      
+    } catch (err) {
+      console.error('Error saat menguji buzzer:', err);
+      setIsBuzzerTestActive(false);
+      setError('Gagal menguji buzzer. Periksa koneksi ke server.');
+    }
+  };
+  
+  // Kalibrasi sensor
+  const handleCalibration = async () => {
+    try {
+      if (isSensorCalibrating) {
+        // Simpan hasil kalibrasi
+        setIsSensorCalibrating(false);
+        
+        // API call untuk menyimpan nilai kalibrasi
+        const response = await fetch('/api/test/sensor-calibration', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify(calibrationValues),
+        });
+        
+        if (response.ok) {
+          // Tidak lagi menyimpan hasil dalam variabel 'result' yang tidak digunakan
+          await response.json();
+          setSuccess('Sensor berhasil dikalibrasi');
+          
+          // Perbarui pengaturan min/max level
+          await updateThresholds(calibrationValues);
+          
+          // Hapus pesan sukses setelah 3 detik
+          setTimeout(() => {
+            setSuccess(null);
+          }, 3000);
+        } else {
+          setError('Gagal menyimpan kalibrasi sensor');
+        }
+      } else {
+        // Mulai proses kalibrasi
+        setIsSensorCalibrating(true);
+      }
+    } catch (err) {
+      console.error('Error kalibrasi sensor:', err);
+      setIsSensorCalibrating(false);
+      setError('Gagal melakukan kalibrasi sensor');
+    }
+  };
+  
+  // Handler untuk perubahan nilai kalibrasi
+  const handleCalibrationChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const { name, value } = e.target;
+    setCalibrationValues(prev => ({
+      ...prev,
+      [name]: parseFloat(value)
+    }));
   };
   
   return (
@@ -266,6 +356,96 @@ const ThresholdForm: React.FC = () => {
           </div>
         </div>
       </form>
+      
+      {/* Pengujian Perangkat */}
+      <div className="border-t border-gray-200 pt-4 mt-6">
+        <h3 className="text-lg font-medium text-gray-800 mb-3">Pengujian Perangkat</h3>
+        
+        <div className="space-y-4">
+          {/* Pengujian Buzzer */}
+          <div className="flex items-center justify-between bg-gray-50 p-3 rounded-md">
+            <div>
+              <p className="text-sm font-medium text-gray-700">Uji Buzzer Alarm</p>
+              <p className="text-xs text-gray-500">Aktifkan buzzer selama 3 detik untuk menguji</p>
+            </div>
+            
+            <button
+              type="button"
+              onClick={handleBuzzerTest}
+              disabled={isBuzzerTestActive}
+              className={`px-4 py-2 rounded-md text-white font-medium ${
+                isBuzzerTestActive
+                  ? 'bg-gray-400 cursor-not-allowed'
+                  : 'bg-red-600 hover:bg-red-700'
+              }`}
+            >
+              {isBuzzerTestActive ? 'Buzzer Aktif...' : 'Uji Buzzer'}
+            </button>
+          </div>
+          
+          {/* Kalibrasi Sensor */}
+          <div className="bg-gray-50 p-3 rounded-md">
+            <div className="flex items-center justify-between mb-2">
+              <div>
+                <p className="text-sm font-medium text-gray-700">Kalibrasi Sensor</p>
+                <p className="text-xs text-gray-500">Kalibrasi sensor level air</p>
+              </div>
+              
+              <button
+                type="button"
+                onClick={handleCalibration}
+                className={`px-4 py-2 rounded-md text-white font-medium ${
+                  isSensorCalibrating
+                    ? 'bg-yellow-500 hover:bg-yellow-600'
+                    : 'bg-blue-600 hover:bg-blue-700'
+                }`}
+              >
+                {isSensorCalibrating ? 'Simpan Kalibrasi' : 'Mulai Kalibrasi'}
+              </button>
+            </div>
+            
+            {isSensorCalibrating && (
+              <div className="mt-3 p-3 bg-white rounded-md shadow-sm">
+                <p className="text-sm text-gray-600 mb-3">
+                  Masukkan nilai kalibrasi sistem:
+                </p>
+                
+                <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                  <div>
+                    <label className="block text-xs font-medium text-gray-700 mb-1">
+                      Level Minimum ({settings.unit})
+                    </label>
+                    <input
+                      type="number"
+                      name="minLevel"
+                      value={calibrationValues.minLevel}
+                      onChange={handleCalibrationChange}
+                      className="block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 text-sm"
+                    />
+                  </div>
+                  
+                  <div>
+                    <label className="block text-xs font-medium text-gray-700 mb-1">
+                      Level Maksimum ({settings.unit})
+                    </label>
+                    <input
+                      type="number"
+                      name="maxLevel"
+                      value={calibrationValues.maxLevel}
+                      onChange={handleCalibrationChange}
+                      className="block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 text-sm"
+                    />
+                  </div>
+                </div>
+                
+                <p className="mt-2 text-xs text-gray-500">
+                  Nilai ini akan digunakan untuk mengkalibrasi pembacaan sensor level air.
+                </p>
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
       
       {/* Representasi visual dari ambang batas */}
       <div className="mt-8 border-t border-gray-200 pt-6">

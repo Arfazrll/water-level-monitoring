@@ -1,8 +1,11 @@
-import React from 'react';
+// FrontEnd/src/components/dashboard/AlarmStatus.tsx
+
+import React, { useState, useEffect } from 'react';
 import { useAppContext } from '@/context/AppContext';
 
 const AlarmStatus: React.FC = () => {
-  const { currentLevel, settings, alerts } = useAppContext();
+  const { currentLevel, settings, alerts, acknowledgeAllAlerts } = useAppContext();
+  const [buzzerActive, setBuzzerActive] = useState(false);
   
   // Dapatkan peringatan terbaru yang belum diketahui, jika ada
   const latestAlert = alerts
@@ -15,6 +18,20 @@ const AlarmStatus: React.FC = () => {
       currentLevel.level >= settings.dangerLevel || 
       currentLevel.level >= settings.warningLevel
     ));
+  
+  // Set status buzzer berdasarkan peringatan yang belum diakui
+  useEffect(() => {
+    setBuzzerActive(alerts.some(alert => !alert.acknowledged));
+  }, [alerts]);
+  
+  // Menangani pengakuan semua peringatan dan mematikan buzzer
+  const handleAcknowledgeAll = async () => {
+    try {
+      await acknowledgeAllAlerts();
+    } catch (error) {
+      console.error('Error acknowledging all alerts:', error);
+    }
+  };
   
   // Tentukan level alarm
   const getAlarmStatus = () => {
@@ -108,14 +125,32 @@ const AlarmStatus: React.FC = () => {
         </div>
       </div>
       
+      {/* Status Buzzer */}
+      {isAlarmActive && (
+        <div className="mt-4">
+          <div className="flex items-center mb-2">
+            <span className={`inline-block w-3 h-3 ${buzzerActive ? 'bg-red-500 animate-pulse' : 'bg-gray-300'} rounded-full mr-2`}></span>
+            <span className="text-sm font-medium">
+              Status Buzzer: {buzzerActive ? 'Aktif' : 'Tidak Aktif'}
+            </span>
+          </div>
+          {buzzerActive && (
+            <button
+              onClick={handleAcknowledgeAll}
+              className="w-full mt-2 py-2 px-4 bg-red-100 text-red-700 rounded-md text-sm font-medium hover:bg-red-200 transition-colors"
+            >
+              Matikan Semua Alarm
+            </button>
+          )}
+        </div>
+      )}
+      
       {latestAlert && (
         <div className="mt-4 text-sm">
           <h3 className="font-medium text-gray-700 mb-2">Peringatan Terbaru:</h3>
           <div className={`p-2 rounded ${latestAlert.type === 'danger' ? 'bg-red-50' : 'bg-yellow-50'}`}>
             <p className={latestAlert.type === 'danger' ? 'text-red-600' : 'text-yellow-600'}>
-              {latestAlert.type === 'danger' 
-                ? `Level air telah mencapai ambang bahaya (${latestAlert.level} cm)`
-                : `Level air telah mencapai ambang peringatan (${latestAlert.level} cm)`}
+              {latestAlert.message}
             </p>
             <p className="text-gray-500 text-xs mt-1">
               {new Date(latestAlert.timestamp).toLocaleString()}
