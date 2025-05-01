@@ -152,35 +152,95 @@ export async function updateSettings(settings: ThresholdSettings): Promise<Thres
   }
 }
 
-// Acknowledge alert
-export async function acknowledgeAlert(alertId: string): Promise<void> {
+// Acknowledge alert - IMPROVED VERSION
+export async function acknowledgeAlert(alertId: string): Promise<{ success: boolean, message: string }> {
   try {
+    // Validasi alertId terlebih dahulu
+    if (!alertId || alertId === 'undefined' || alertId === 'null') {
+      console.error('Invalid alert ID:', alertId);
+      // Return error result instead of throwing
+      return { 
+        success: false, 
+        message: 'Invalid alert ID. Please try again or refresh the page.'
+      };
+    }
+    
+    console.log(`Sending acknowledge request for alert ID: ${alertId}`);
+    
     const response = await fetch(`${API_BASE_URL}/alerts/${alertId}/acknowledge`, {
       method: 'PUT',
+      headers: {
+        'Content-Type': 'application/json',
+      }
     });
     
-    if (!response.ok) {
-      throw new Error(`API error: ${response.status}`);
+    // Log respons untuk debugging
+    let responseText = '';
+    try {
+      responseText = await response.text();
+      console.log(`API Response (${response.status}):`, responseText);
+    } catch (e) {
+      console.log(`Could not get response text: ${e}`);
     }
+    
+    if (!response.ok) {
+      return { 
+        success: false, 
+        message: `Server error: ${response.status}${responseText ? ` - ${responseText}` : ''}`
+      };
+    }
+    
+    console.log(`Alert ${alertId} successfully acknowledged`);
+    return { 
+      success: true, 
+      message: 'Alert successfully acknowledged'
+    };
   } catch (error) {
     console.error('Error acknowledging alert:', error);
-    throw error;
+    return { 
+      success: false, 
+      message: error instanceof Error ? error.message : 'Unknown error occurred'
+    };
   }
 }
 
 // Acknowledge all alerts
-export async function acknowledgeAllAlerts(): Promise<void> {
+export async function acknowledgeAllAlerts(): Promise<{ success: boolean, message: string }> {
   try {
     const response = await fetch(`${API_BASE_URL}/alerts/acknowledge-all`, {
       method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      }
     });
     
-    if (!response.ok) {
-      throw new Error(`API error: ${response.status}`);
+    // Log respons untuk debugging
+    let responseText = '';
+    try {
+      responseText = await response.text();
+      console.log(`API Response (${response.status}):`, responseText);
+    } catch (e) {
+      console.log(`Could not get response text: ${e}`);
     }
+    
+    if (!response.ok) {
+      return {
+        success: false,
+        message: `Server error: ${response.status}${responseText ? ` - ${responseText}` : ''}`
+      };
+    }
+    
+    console.log('All alerts successfully acknowledged');
+    return {
+      success: true,
+      message: 'All alerts successfully acknowledged'
+    };
   } catch (error) {
     console.error('Error acknowledging all alerts:', error);
-    throw error;
+    return {
+      success: false,
+      message: error instanceof Error ? error.message : 'Unknown error occurred'
+    };
   }
 }
 

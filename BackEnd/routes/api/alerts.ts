@@ -1,12 +1,12 @@
-// Letakkan di: BackEnd/routes/api/alerts.ts
+// BackEnd/routes/api/alerts.ts
 
-import express, { Request, Response } from 'express';
+import express, { Request, Response, NextFunction, Router } from 'express';
 import Alert from '../../models/Alert';
 import { protect } from '../../middleware/auth';
 import { deactivateBuzzer } from '../../services/sensorService';
 import { broadcastAlert } from '../../services/wsService';
 
-const router = express.Router();
+const router: Router = express.Router();
 
 // @route   GET /api/alerts
 // @desc    Ambil peringatan dengan filtering opsional
@@ -81,45 +81,55 @@ router.post('/', protect, async (req: Request, res: Response) => {
 // @route   PUT /api/alerts/:id/acknowledge
 // @desc    Tandai peringatan sebagai diketahui
 // @access  Public (sebaiknya diamankan dengan auth di production)
-router.put('/:id/acknowledge', async (req: Request, res: Response) => {
-  try {
-    const alertId = req.params.id;
-    
-    const alert = await Alert.findById(alertId);
-    
-    if (!alert) {
-      res.status(404).json({ message: 'Peringatan tidak ditemukan' });
-      return;
-    }
-    
-    alert.acknowledged = true;
-    await alert.save();
-    
-    // Nonaktifkan buzzer ketika peringatan diakui
-    deactivateBuzzer();
-    
-    // Broadcast status peringatan yang diperbarui
+router.put('/:id/acknowledge', (req: Request, res: Response) => {
+  (async () => {
     try {
-      broadcastAlert(alert);
-    } catch (wsError) {
-      console.warn('Gagal broadcast update peringatan via WebSocket:', wsError);
+      const alertId = req.params.id;
+      
+      // Validasi ID - pastikan tidak undefined dan memiliki format yang benar
+      if (!alertId || alertId === 'undefined' || alertId === 'null') {
+        return res.status(400).json({ message: 'ID peringatan tidak valid' });
+      }
+
+      // Log untuk debug
+      console.log(`Mencoba mengakui peringatan dengan ID: ${alertId}`);
+      
+      const alert = await Alert.findById(alertId);
+      
+      if (!alert) {
+        console.log(`Peringatan dengan ID ${alertId} tidak ditemukan`);
+        return res.status(404).json({ message: 'Peringatan tidak ditemukan' }); 
+      }
+      
+      alert.acknowledged = true;
+      await alert.save();
+      
+      // Nonaktifkan buzzer ketika peringatan diakui
+      deactivateBuzzer();
+      
+      // Broadcast status peringatan yang diperbarui
+      try {
+        broadcastAlert(alert);
+      } catch (wsError) {
+        console.warn('Gagal broadcast update peringatan via WebSocket:', wsError);
+      }
+      
+      res.json({
+        message: 'Peringatan berhasil ditandai sebagai diketahui',
+        id: alertId,
+        acknowledged: true,
+      });
+    } catch (error) {
+      console.error(`Error menandai peringatan ${req.params.id}:`, error);
+      res.status(500).json({ message: 'Server error' });
     }
-    
-    res.json({
-      message: 'Peringatan berhasil ditandai sebagai diketahui',
-      id: alertId,
-      acknowledged: true,
-    });
-  } catch (error) {
-    console.error(`Error menandai peringatan ${req.params.id}:`, error);
-    res.status(500).json({ message: 'Server error' });
-  }
+  })();
 });
 
 // @route   POST /api/alerts/acknowledge-all
 // @desc    Tandai semua peringatan sebagai diketahui
 // @access  Public (sebaiknya diamankan dengan auth di production)
-router.post('/acknowledge-all', function(req: Request, res: Response) {
+router.post('/acknowledge-all', (req: Request, res: Response) => {
   (async () => {
     try {
       // Temukan semua peringatan yang belum diketahui

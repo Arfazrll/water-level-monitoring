@@ -1,4 +1,37 @@
 "use strict";
+var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    var desc = Object.getOwnPropertyDescriptor(m, k);
+    if (!desc || ("get" in desc ? !m.__esModule : desc.writable || desc.configurable)) {
+      desc = { enumerable: true, get: function() { return m[k]; } };
+    }
+    Object.defineProperty(o, k2, desc);
+}) : (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    o[k2] = m[k];
+}));
+var __setModuleDefault = (this && this.__setModuleDefault) || (Object.create ? (function(o, v) {
+    Object.defineProperty(o, "default", { enumerable: true, value: v });
+}) : function(o, v) {
+    o["default"] = v;
+});
+var __importStar = (this && this.__importStar) || (function () {
+    var ownKeys = function(o) {
+        ownKeys = Object.getOwnPropertyNames || function (o) {
+            var ar = [];
+            for (var k in o) if (Object.prototype.hasOwnProperty.call(o, k)) ar[ar.length] = k;
+            return ar;
+        };
+        return ownKeys(o);
+    };
+    return function (mod) {
+        if (mod && mod.__esModule) return mod;
+        var result = {};
+        if (mod != null) for (var k = ownKeys(mod), i = 0; i < k.length; i++) if (k[i] !== "default") __createBinding(result, mod, k[i]);
+        __setModuleDefault(result, mod);
+        return result;
+    };
+})();
 var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, generator) {
     function adopt(value) { return value instanceof P ? value : new P(function (resolve) { resolve(value); }); }
     return new (P || (P = Promise))(function (resolve, reject) {
@@ -8,17 +41,25 @@ var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, ge
         step((generator = generator.apply(thisArg, _arguments || [])).next());
     });
 };
-var __importDefault = (this && this.__importDefault) || function (mod) {
-    return (mod && mod.__esModule) ? mod : { "default": mod };
-};
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.sendPumpNotification = exports.sendAlertEmail = void 0;
-const mailer_1 = __importDefault(require("../config/mailer"));
+const mailer_1 = __importStar(require("../config/mailer"));
 const sendAlertEmail = (to, subject, message) => __awaiter(void 0, void 0, void 0, function* () {
     try {
+        // Periksa apakah layanan email sudah dikonfigurasi
+        if (!(0, mailer_1.isEmailServiceEnabled)()) {
+            console.warn('Notifikasi email dilewati: Layanan email tidak dikonfigurasi');
+            return false;
+        }
         // Don't send if email is empty
         if (!to) {
-            console.warn('Email notification skipped: No recipient email provided');
+            console.warn('Notifikasi email dilewati: Alamat email penerima tidak ada');
+            return false;
+        }
+        // Validasi format email
+        const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+        if (!emailRegex.test(to)) {
+            console.warn(`Notifikasi email dilewati: Format email tidak valid "${to}"`);
             return false;
         }
         // Build HTML email
@@ -31,11 +72,11 @@ const sendAlertEmail = (to, subject, message) => __awaiter(void 0, void 0, void 
           ${message}
         </p>
         <p style="font-size: 16px; line-height: 1.5; color: #333;">
-          Please check your Water Level Monitoring Dashboard for more details.
+          Silakan periksa Dashboard Pemantauan Ketinggian Air untuk detail lebih lanjut.
         </p>
         <p style="font-size: 14px; color: #777; margin-top: 30px; text-align: center;">
-          This is an automated message from your Water Level Monitoring System. 
-          Do not reply to this email.
+          Ini adalah pesan otomatis dari Sistem Pemantauan Ketinggian Air Anda. 
+          Jangan membalas email ini.
         </p>
       </div>
     `;
@@ -47,28 +88,39 @@ const sendAlertEmail = (to, subject, message) => __awaiter(void 0, void 0, void 
             text: message,
             html
         });
-        console.log('Alert email sent:', info.messageId);
+        console.log('Email notifikasi berhasil dikirim:', info.messageId);
         return true;
     }
     catch (error) {
-        console.error('Error sending alert email:', error);
+        console.error('Error saat mengirim email notifikasi:', error);
         return false;
     }
 });
 exports.sendAlertEmail = sendAlertEmail;
 const sendPumpNotification = (to_1, isActivated_1, waterLevel_1, ...args_1) => __awaiter(void 0, [to_1, isActivated_1, waterLevel_1, ...args_1], void 0, function* (to, isActivated, waterLevel, unit = 'cm') {
     try {
+        // Periksa apakah layanan email sudah dikonfigurasi
+        if (!(0, mailer_1.isEmailServiceEnabled)()) {
+            console.warn('Notifikasi pompa dilewati: Layanan email tidak dikonfigurasi');
+            return false;
+        }
         // Don't send if email is empty
         if (!to) {
-            console.warn('Pump notification skipped: No recipient email provided');
+            console.warn('Notifikasi pompa dilewati: Alamat email penerima tidak ada');
+            return false;
+        }
+        // Validasi format email
+        const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+        if (!emailRegex.test(to)) {
+            console.warn(`Notifikasi pompa dilewati: Format email tidak valid "${to}"`);
             return false;
         }
         const subject = isActivated
-            ? 'Water Pump Activated'
-            : 'Water Pump Deactivated';
+            ? 'Pompa Air Diaktifkan'
+            : 'Pompa Air Dinonaktifkan';
         const message = isActivated
-            ? `The water pump has been automatically activated because the water level reached ${waterLevel} ${unit}.`
-            : `The water pump has been automatically deactivated because the water level dropped to ${waterLevel} ${unit}.`;
+            ? `Pompa air telah diaktifkan secara otomatis karena ketinggian air mencapai ${waterLevel} ${unit}.`
+            : `Pompa air telah dinonaktifkan secara otomatis karena ketinggian air turun menjadi ${waterLevel} ${unit}.`;
         // Build HTML email
         const html = `
       <div style="font-family: Arial, sans-serif; padding: 20px; max-width: 600px; margin: 0 auto; border: 1px solid #e4e4e4; border-radius: 5px;">
@@ -79,11 +131,11 @@ const sendPumpNotification = (to_1, isActivated_1, waterLevel_1, ...args_1) => _
           ${message}
         </p>
         <p style="font-size: 16px; line-height: 1.5; color: #333;">
-          Current water level: ${waterLevel} ${unit}
+          Ketinggian air saat ini: ${waterLevel} ${unit}
         </p>
         <p style="font-size: 14px; color: #777; margin-top: 30px; text-align: center;">
-          This is an automated message from your Water Level Monitoring System. 
-          Do not reply to this email.
+          Ini adalah pesan otomatis dari Sistem Pemantauan Ketinggian Air Anda. 
+          Jangan membalas email ini.
         </p>
       </div>
     `;
@@ -95,11 +147,11 @@ const sendPumpNotification = (to_1, isActivated_1, waterLevel_1, ...args_1) => _
             text: message,
             html
         });
-        console.log('Pump notification email sent:', info.messageId);
+        console.log('Email notifikasi pompa berhasil dikirim:', info.messageId);
         return true;
     }
     catch (error) {
-        console.error('Error sending pump notification email:', error);
+        console.error('Error saat mengirim email notifikasi pompa:', error);
         return false;
     }
 });
