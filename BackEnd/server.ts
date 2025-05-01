@@ -11,11 +11,10 @@ import { initWebSocketServer } from './services/wsService';
 import { simulateWaterLevelReading } from './utils/helpers';
 
 // Import sensor service
-// Perbarui imports di server.ts untuk menggunakan mock sensorService
 import { 
   initSensor, 
   sensorEvents,
-  activateBuzzer // Tambahkan import activateBuzzer
+  activateBuzzer
 } from './services/sensorService';
 
 // Import models 

@@ -1,3 +1,5 @@
+// BackEnd/config/mailer.ts
+
 import nodemailer from 'nodemailer';
 import dotenv from 'dotenv';
 
@@ -15,17 +17,37 @@ if (!userEmail || !isValidEmail(userEmail)) {
   console.warn(`Email user tidak valid atau tidak dikonfigurasi: "${userEmail}". Email notifikasi tidak akan berfungsi.`);
 }
 
-// Create reusable transporter object using SMTP transport
-// Buat konfigurasi transporter langsung di createTransport tanpa menyimpannya ke variabel terpisah
-const transporter = nodemailer.createTransport({
-  host: process.env.EMAIL_HOST || 'smtp.gmail.com', // Tentukan host SMTP Gmail
-  port: parseInt(process.env.EMAIL_PORT || '587'),  // Tentukan port SMTP Gmail (587 untuk TLS)
-  secure: process.env.EMAIL_SECURE === 'true',     // Gunakan TLS jika aman
-  auth: {
-    user: userEmail || 'example@gmail.com', // default dummy
-    pass: process.env.EMAIL_PASSWORD || 'dummy-password'
+// Fungsi untuk membuat transporter
+const createTransporter = () => {
+  // Verifikasi apakah kredensial email sudah dikonfigurasi
+  if (!process.env.EMAIL_USER || !process.env.EMAIL_PASSWORD) {
+    console.warn('Kredensial SMTP tidak dikonfigurasi. Notifikasi email tidak akan dikirim.');
+    console.warn('Pastikan EMAIL_USER dan EMAIL_PASSWORD diatur di file .env');
+    return null;
   }
-});
+
+  // Coba buat transporter dengan kredensial yang telah dikonfigurasi
+  try {
+    return nodemailer.createTransport({
+      host: process.env.EMAIL_HOST || 'smtp.gmail.com',
+      port: parseInt(process.env.EMAIL_PORT || '587'),
+      secure: process.env.EMAIL_SECURE === 'true',
+      auth: {
+        user: process.env.EMAIL_USER,
+        pass: process.env.EMAIL_PASSWORD
+      },
+      // Tambahkan opsi tambahan untuk lebih banyak logging dan debug
+      debug: process.env.NODE_ENV === 'development',
+      logger: process.env.NODE_ENV === 'development'
+    });
+  } catch (error) {
+    console.error('Error creating email transporter:', error);
+    return null;
+  }
+};
+
+// Buat transporter
+const transporter = createTransporter();
 
 // Verifikasi koneksi email saat startup
 export const verifyEmailConnection = async (): Promise<boolean> => {
@@ -38,8 +60,16 @@ export const verifyEmailConnection = async (): Promise<boolean> => {
       return false;
     }
     
+    // Jika transporter tidak berhasil dibuat, skip verifikasi
+    if (!transporter) {
+      console.warn('Email transporter tidak tersedia. Verifikasi email dilewati.');
+      return false;
+    }
+    
+    // Verifikasi koneksi
     await transporter.verify();
     console.log('Koneksi server email berhasil');
+    
     return true;
   } catch (error: any) {
     if (error.code === 'EDNS') {
@@ -55,13 +85,15 @@ export const verifyEmailConnection = async (): Promise<boolean> => {
       console.error('Error koneksi server email:', error);
     }
     console.warn('Layanan email tidak tersedia. Notifikasi email tidak akan berfungsi.');
+    
     return false;
   }
 };
 
 // Fungsi untuk mengecek apakah email berfungsi
 export const isEmailServiceEnabled = (): boolean => {
-  return !!(process.env.EMAIL_USER && 
+  return !!(transporter && 
+            process.env.EMAIL_USER && 
             process.env.EMAIL_PASSWORD && 
             process.env.EMAIL_USER !== 'your_email@gmail.com');
 };
