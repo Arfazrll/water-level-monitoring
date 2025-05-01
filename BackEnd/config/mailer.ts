@@ -52,40 +52,39 @@ const transporter = createTransporter();
 // Verifikasi koneksi email saat startup
 export const verifyEmailConnection = async (): Promise<boolean> => {
   try {
-    // Jika kredensial email tidak dikonfigurasi, skip verifikasi
     if (!process.env.EMAIL_USER || !process.env.EMAIL_PASSWORD || 
         process.env.EMAIL_USER === 'your_email@gmail.com') {
       console.warn('Konfigurasi email tidak lengkap. Verifikasi email dilewati.');
-      console.warn('Perbarui file .env dengan EMAIL_USER dan EMAIL_PASSWORD yang valid jika dibutuhkan.');
       return false;
     }
     
-    // Jika transporter tidak berhasil dibuat, skip verifikasi
     if (!transporter) {
       console.warn('Email transporter tidak tersedia. Verifikasi email dilewati.');
       return false;
     }
     
-    // Verifikasi koneksi
     await transporter.verify();
     console.log('Koneksi server email berhasil');
     
+    // Kirim email tes
+    console.log('Mengirim email tes...');
+    try {
+      const info = await transporter.sendMail({
+        from: process.env.EMAIL_FROM || '"Water Monitor" <alert@watermonitor.com>',
+        to: process.env.EMAIL_USER,
+        subject: 'Test Email - Water Monitoring System',
+        text: 'Sistem monitoring level air berhasil dikonfigurasi.',
+        html: '<p>Sistem monitoring level air berhasil dikonfigurasi.</p>'
+      });
+      console.log('Email tes berhasil dikirim:', info.messageId);
+    } catch (testError) {
+      console.error('Gagal mengirim email tes:', testError);
+    }
+    
     return true;
   } catch (error: any) {
-    if (error.code === 'EDNS') {
-      console.error('Error koneksi email: Nama domain tidak valid. Periksa format EMAIL_USER.');
-      console.error('EMAIL_USER harus berupa alamat email lengkap, bukan hanya username.');
-    } else if (error.code === 'EAUTH') {
-      console.error('Error otentikasi email: Username/password tidak diterima.');
-      console.error('Jika Anda menggunakan Gmail, pastikan untuk:');
-      console.error('1. Mengaktifkan verifikasi 2 langkah di akun Gmail');
-      console.error('2. Membuat password aplikasi di https://myaccount.google.com/apppasswords');
-      console.error('3. Menggunakan password aplikasi tersebut di file .env');
-    } else {
-      console.error('Error koneksi server email:', error);
-    }
-    console.warn('Layanan email tidak tersedia. Notifikasi email tidak akan berfungsi.');
-    
+    // Error handling yang sudah ada
+    console.error('Error koneksi server email:', error);
     return false;
   }
 };

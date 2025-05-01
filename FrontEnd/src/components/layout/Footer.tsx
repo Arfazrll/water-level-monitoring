@@ -9,7 +9,7 @@ const Footer: React.FC = () => {
             &copy; {new Date().getFullYear()} Sistem Pemantauan Level Air
           </div>
           <div className="text-sm text-gray-500">
-            <span>Versi 1.0.0</span>
+            <span>DiKembangkan Oleh Kelompok 2</span>
           </div>
         </div>
       </div>

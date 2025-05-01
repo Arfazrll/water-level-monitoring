@@ -22,77 +22,114 @@ const ARDUINO_BAUD_RATE = parseInt(process.env.ARDUINO_BAUD_RATE || '9600');
  * Mencoba terhubung ke sensor ultrasonik atau float melalui Arduino
  */
 export const initSensor = () => {
-  try {
-    // Jika dalam mode simulasi, gunakan mock sensor
-    if (process.env.SIMULATE_SENSOR === 'true') {
-      console.log('Menjalankan sensor dalam mode simulasi');
-      setInterval(() => {
-        mockReadSensor();
-      }, 5000);
-      return;
-    }
-
-    // Coba terhubung ke sensor fisik via Serial
-    console.log(`Mencoba terhubung ke sensor pada port ${ARDUINO_PORT} dengan baud rate ${ARDUINO_BAUD_RATE}`);
-    
-    sensorPort = new SerialPort({ path: ARDUINO_PORT, baudRate: ARDUINO_BAUD_RATE });
-
-    parser = sensorPort.pipe(new ReadlineParser({ delimiter: '\r\n' }));
-    
-    // Handle data dari serial
-    if (parser) {
-      parser.on('data', (data: string) => {
-        try {
-          // Format data dari Arduino diharapkan: "water_level:XX.XX"
-          const parts = data.trim().split(':');
-          
-          if (parts.length === 2 && parts[0] === 'water_level') {
-            const level = parseFloat(parts[1]);
-            
-            if (!isNaN(level)) {
-              // Emit event dengan data
-              const waterLevel = {
-                level: Math.max(0, Math.min(100, Math.round(level * 10) / 10)),
-                unit: 'cm',
-                timestamp: new Date()
-              };
-              
-              sensorEvents.emit('reading', waterLevel);
-              console.log(`Sensor reading: ${waterLevel.level} ${waterLevel.unit}`);
-            }
-          }
-        } catch (error) {
-          console.error('Error parsing sensor data:', error);
-        }
+    try {
+      // Jika dalam mode simulasi, gunakan mock sensor
+      if (process.env.SIMULATE_SENSOR === 'true') {
+        console.log('Menjalankan sensor dalam mode simulasi');
+        setInterval(() => {
+          mockReadSensor();
+        }, 5000);
+        return;
+      }
+  
+      // Coba terhubung ke sensor fisik via Serial
+      const portPath = process.env.ARDUINO_PORT || (
+        process.platform === 'win32' ? 'COM3' : // Windows
+        process.platform === 'darwin' ? '/dev/tty.usbmodem1101' : // macOS
+        '/dev/ttyACM0' // Linux
+      );
+      
+      console.log(`Mencoba terhubung ke sensor pada port ${portPath} dengan baud rate ${ARDUINO_BAUD_RATE}`);
+      
+      sensorPort = new SerialPort({ 
+        path: portPath, 
+        baudRate: ARDUINO_BAUD_RATE,
+        autoOpen: true
       });
-    }
-    
-    // Handle koneksi
-    sensorPort.on('open', () => {
-      console.log('Koneksi sensor berhasil dibuka');
-    });
-    
-    // Handle error
-    sensorPort.on('error', (err: Error) => {
-      console.error('Error koneksi sensor:', err.message);
+  
+      parser = sensorPort.pipe(new ReadlineParser({ delimiter: '\r\n' }));
+      
+      // Handle data dari serial
+      if (parser) {
+        parser.on('data', (data: string) => {
+          console.log('Raw sensor data:', data);
+          try {
+            // Format data dari Arduino diharapkan: "water_level:XX.XX"
+            // Tetapi kita juga mendukung format lain seperti JSON
+            if (data.startsWith('{') && data.endsWith('}')) {
+              // Format JSON
+              try {
+                const jsonData = JSON.parse(data);
+                if (jsonData.water_level !== undefined) {
+                  const level = parseFloat(jsonData.water_level);
+                  
+                  if (!isNaN(level)) {
+                    // Emit event dengan data
+                    const waterLevel = {
+                      level: Math.max(0, Math.min(100, Math.round(level * 10) / 10)),
+                      unit: 'cm',
+                      timestamp: new Date()
+                    };
+                    
+                    sensorEvents.emit('reading', waterLevel);
+                    console.log(`Sensor reading (JSON): ${waterLevel.level} ${waterLevel.unit}`);
+                  }
+                }
+              } catch (jsonError) {
+                console.error('Error parsing JSON sensor data:', jsonError);
+              }
+            } else {
+              // Format text: "water_level:XX.XX"
+              const parts = data.trim().split(':');
+              
+              if (parts.length === 2 && parts[0] === 'water_level') {
+                const level = parseFloat(parts[1]);
+                
+                if (!isNaN(level)) {
+                  // Emit event dengan data
+                  const waterLevel = {
+                    level: Math.max(0, Math.min(100, Math.round(level * 10) / 10)),
+                    unit: 'cm',
+                    timestamp: new Date()
+                  };
+                  
+                  sensorEvents.emit('reading', waterLevel);
+                  console.log(`Sensor reading (Text): ${waterLevel.level} ${waterLevel.unit}`);
+                }
+              }
+            }
+          } catch (error) {
+            console.error('Error parsing sensor data:', error);
+          }
+        });
+      }
+      
+      // Handle koneksi
+      sensorPort.on('open', () => {
+        console.log('Koneksi sensor berhasil dibuka');
+      });
+      
+      // Handle error
+      sensorPort.on('error', (err: Error) => {
+        console.error('Error koneksi sensor:', err.message);
+        
+        // Fallback ke simulasi jika sensor fisik gagal
+        console.log('Beralih ke mode simulasi karena sensor fisik tidak tersedia');
+        setInterval(() => {
+          mockReadSensor();
+        }, 5000);
+      });
+      
+    } catch (error) {
+      console.error('Error inisialisasi sensor:', error);
+      console.log('Beralih ke mode simulasi karena sensor fisik tidak tersedia');
       
       // Fallback ke simulasi jika sensor fisik gagal
-      console.log('Beralih ke mode simulasi karena sensor fisik tidak tersedia');
       setInterval(() => {
         mockReadSensor();
       }, 5000);
-    });
-    
-  } catch (error) {
-    console.error('Error inisialisasi sensor:', error);
-    console.log('Beralih ke mode simulasi karena sensor fisik tidak tersedia');
-    
-    // Fallback ke simulasi jika sensor fisik gagal
-    setInterval(() => {
-      mockReadSensor();
-    }, 5000);
-  }
-};
+    }
+  };
 
 /**
  * Simulasi pembacaan sensor

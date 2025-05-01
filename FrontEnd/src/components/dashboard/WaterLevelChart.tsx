@@ -28,14 +28,21 @@ interface CustomTooltipProps extends TooltipProps<number, string> {
   }>;
 }
 
+// Fungsi untuk memformat timestamp
+const formatTimestamp = (timestamp: string) => {
+  try {
+    const date = new Date(timestamp);
+    return !isNaN(date.getTime()) 
+      ? date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+      : 'Waktu tidak valid';
+  } catch (error) {
+    console.error('Error formatting timestamp:', error);
+    return 'Error tanggal';
+  }
+};
+
 const WaterLevelChart: React.FC = () => {
   const { waterLevelData, settings } = useAppContext();
-
-  // Format timestamp untuk ditampilkan
-  const formatTimestamp = (timestamp: string) => {
-    const date = new Date(timestamp);
-    return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-  };
 
   // Tooltip kustom dengan type yang benar dan menghapus parameter label yang tidak digunakan
   const CustomTooltip = ({ active, payload }: CustomTooltipProps) => {
