@@ -1,6 +1,41 @@
 import { WaterLevelData, AlertData, ThresholdSettings } from './types';
 
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://172.20.10.6:5000/api';
+// Gunakan environment variable dengan fallback
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000/api';
+
+// Helper function untuk pemeriksaan respons API
+const handleApiResponse = async (response: Response) => {
+  if (!response.ok) {
+    // Try to get error message from response if possible
+    let errorMessage = `API error: ${response.status}`;
+    try {
+      const errorData = await response.json();
+      if (errorData && errorData.message) {
+        errorMessage = errorData.message;
+      }
+    } catch {
+      // Ignore JSON parsing error, use default error message
+      // No variable name needed in catch
+    }
+    
+    throw new Error(errorMessage);
+  }
+  
+  const data = await response.json();
+  
+  // Handle API response format variations
+  // Some endpoints return { success, message, data }
+  // Others return data directly
+  if (data && data.hasOwnProperty('success')) {
+    if (!data.success) {
+      throw new Error(data.message || 'API request failed');
+    }
+    return data.data;
+  }
+  
+  return data;
+};
+
 // Fetch water level data
 export async function fetchWaterLevelData(limit?: number): Promise<WaterLevelData[]> {
   try {
@@ -9,12 +44,7 @@ export async function fetchWaterLevelData(limit?: number): Promise<WaterLevelDat
       : `${API_BASE_URL}/water-level`;
     
     const response = await fetch(url);
-    
-    if (!response.ok) {
-      throw new Error(`API error: ${response.status}`);
-    }
-    
-    return await response.json();
+    return handleApiResponse(response);
   } catch (error) {
     console.error('Error fetching water level data:', error);
     throw error;
@@ -25,12 +55,7 @@ export async function fetchWaterLevelData(limit?: number): Promise<WaterLevelDat
 export async function fetchAlerts(): Promise<AlertData[]> {
   try {
     const response = await fetch(`${API_BASE_URL}/alerts`);
-    
-    if (!response.ok) {
-      throw new Error(`API error: ${response.status}`);
-    }
-    
-    return await response.json();
+    return handleApiResponse(response);
   } catch (error) {
     console.error('Error fetching alerts:', error);
     throw error;
@@ -41,12 +66,7 @@ export async function fetchAlerts(): Promise<AlertData[]> {
 export async function fetchSettings(): Promise<ThresholdSettings> {
   try {
     const response = await fetch(`${API_BASE_URL}/settings`);
-    
-    if (!response.ok) {
-      throw new Error(`API error: ${response.status}`);
-    }
-    
-    return await response.json();
+    return handleApiResponse(response);
   } catch (error) {
     console.error('Error fetching settings:', error);
     throw error;
@@ -64,11 +84,7 @@ export async function updateSettings(settings: ThresholdSettings): Promise<Thres
       body: JSON.stringify(settings),
     });
     
-    if (!response.ok) {
-      throw new Error(`API error: ${response.status}`);
-    }
-    
-    return await response.json();
+    return handleApiResponse(response);
   } catch (error) {
     console.error('Error updating settings:', error);
     throw error;
@@ -96,23 +112,9 @@ export async function acknowledgeAlert(alertId: string): Promise<{ success: bool
       }
     });
     
-    // Log response for debugging
-    let responseText = '';
-    try {
-      responseText = await response.text();
-      console.log(`API Response (${response.status}):`, responseText);
-    } catch (e) {
-      console.log(`Could not get response text: ${e}`);
-    }
+    // Just await the response handling without storing unused data
+    await handleApiResponse(response);
     
-    if (!response.ok) {
-      return { 
-        success: false, 
-        message: `Server error: ${response.status}${responseText ? ` - ${responseText}` : ''}`
-      };
-    }
-    
-    console.log(`Alert ${alertId} successfully acknowledged`);
     return { 
       success: true, 
       message: 'Alert successfully acknowledged'
@@ -136,14 +138,9 @@ export async function acknowledgeAllAlerts(): Promise<{ success: boolean, messag
       }
     });
     
-    if (!response.ok) {
-      return {
-        success: false,
-        message: `Server error: ${response.status}`
-      };
-    }
+    // Just await the response handling without storing unused data
+    await handleApiResponse(response);
     
-    console.log('All alerts successfully acknowledged');
     return {
       success: true,
       message: 'All alerts successfully acknowledged'
@@ -168,9 +165,7 @@ export async function controlPump(isActive: boolean): Promise<void> {
       body: JSON.stringify({ isActive }),
     });
     
-    if (!response.ok) {
-      throw new Error(`API error: ${response.status}`);
-    }
+    await handleApiResponse(response);
   } catch (error) {
     console.error('Error controlling pump:', error);
     throw error;
@@ -188,11 +183,42 @@ export async function setPumpMode(mode: 'auto' | 'manual'): Promise<void> {
       body: JSON.stringify({ mode }),
     });
     
-    if (!response.ok) {
-      throw new Error(`API error: ${response.status}`);
-    }
+    await handleApiResponse(response);
   } catch (error) {
     console.error('Error setting pump mode:', error);
     throw error;
+  }
+}
+
+// Fetch pump status
+export async function fetchPumpStatus() {
+  try {
+    const response = await fetch(`${API_BASE_URL}/pump/status`);
+    return handleApiResponse(response);
+  } catch (error) {
+    console.error('Error fetching pump status:', error);
+    throw error;
+  }
+}
+
+// Test server connection
+export async function testServerConnection(): Promise<boolean> {
+  try {
+    const response = await fetch(`${API_BASE_URL}/status`, { 
+      method: 'GET',
+      headers: {
+        'Content-Type': 'application/json',
+      }
+    });
+    
+    if (!response.ok) {
+      return false;
+    }
+    
+    await response.json();
+    return true;
+  } catch (error) {
+    console.error('Server connection test failed:', error);
+    return false;
   }
 }

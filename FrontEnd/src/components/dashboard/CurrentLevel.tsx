@@ -1,14 +1,42 @@
+// FrontEnd/src/components/dashboard/CurrentLevel.tsx (Perbaikan)
+
 import React from 'react';
 import { useAppContext } from '@/context/AppContext';
 
 const CurrentLevel: React.FC = () => {
-  const { currentLevel, settings } = useAppContext();
+  const { currentLevel, settings, isLoading, error } = useAppContext();
 
+  // Tampilkan loading state
+  if (isLoading) {
+    return (
+      <div className="bg-white p-4 rounded-lg shadow-md">
+        <h2 className="text-lg font-semibold text-gray-800 mb-4">Level Air Saat Ini</h2>
+        <div className="flex justify-center items-center h-64">
+          <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-blue-500"></div>
+        </div>
+      </div>
+    );
+  }
+
+  // Tampilkan error state
+  if (error) {
+    return (
+      <div className="bg-white p-4 rounded-lg shadow-md">
+        <h2 className="text-lg font-semibold text-gray-800 mb-4">Level Air Saat Ini</h2>
+        <div className="p-4 bg-red-50 text-red-700 rounded-md">
+          <p>Error: {error}</p>
+          <p className="mt-2 text-sm">Coba muat ulang halaman atau periksa koneksi server.</p>
+        </div>
+      </div>
+    );
+  }
+
+  // Tampilkan data empty state
   if (!currentLevel) {
     return (
       <div className="bg-white p-4 rounded-lg shadow-md">
         <h2 className="text-lg font-semibold text-gray-800 mb-4">Level Air Saat Ini</h2>
-        <p className="text-gray-500">Memuat data...</p>
+        <p className="text-gray-500">Belum ada data level air tersedia.</p>
       </div>
     );
   }
@@ -72,6 +100,7 @@ const CurrentLevel: React.FC = () => {
   };
 
   const statusInfo = getStatusInfo();
+  // Kalkulasi persentase untuk visualisasi tangki
   const percentage = (currentLevel.level / settings.maxLevel) * 100;
 
   // Format timestamp
@@ -87,7 +116,7 @@ const CurrentLevel: React.FC = () => {
           <h3 className={`text-sm font-medium ${statusInfo.color}`}>Status: {statusInfo.label}</h3>
           <div className="mt-2 text-sm">
             <p className={statusInfo.color}>
-              Level saat ini adalah {currentLevel.level} {currentLevel.unit}
+              Level saat ini adalah {currentLevel.level.toFixed(1)} {currentLevel.unit}
             </p>
           </div>
         </div>
@@ -154,14 +183,14 @@ const CurrentLevel: React.FC = () => {
         {/* Teks level air di tengah */}
         <div className="absolute inset-0 flex items-center justify-center">
           <div className="bg-white bg-opacity-80 px-2 py-1 rounded text-lg font-bold shadow">
-            {currentLevel.level} {currentLevel.unit}
+            {currentLevel.level.toFixed(1)} {currentLevel.unit}
           </div>
         </div>
       </div>
 
       <div className="grid grid-cols-2 gap-4 text-sm text-gray-600">
         <div>
-          <span className="font-medium">Pembacaan:</span> {currentLevel.level} {currentLevel.unit}
+          <span className="font-medium">Pembacaan:</span> {currentLevel.level.toFixed(1)} {currentLevel.unit}
         </div>
         <div>
           <span className="font-medium">Level Maksimum:</span> {settings.maxLevel} {settings.unit}

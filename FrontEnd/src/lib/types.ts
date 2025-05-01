@@ -1,17 +1,4 @@
-export interface WaterLevelData {
-  timestamp: string;
-  level: number;
-  unit: string;
-}
 
-export interface AlertData {
-  id: string;
-  timestamp: string;
-  level: number;
-  type: 'warning' | 'danger';
-  message: string;
-  acknowledged: boolean;
-}
 
 export interface ThresholdSettings {
   warningLevel: number;
@@ -34,4 +21,26 @@ export interface DeviceStatus {
   lastSeen: string;
   batteryLevel?: number;
   signalStrength?: number;
+}
+
+export interface WebSocketMessage {
+  type: string;
+  data?: unknown;  // Making data optional with ?
+  timestamp?: string;
+}
+
+// Keep all your other existing types...
+export interface WaterLevelData {
+  timestamp: string;
+  level: number;
+  unit: string;
+}
+
+export interface AlertData {
+  id: string;
+  timestamp: string;
+  level: number;
+  type: 'warning' | 'danger';
+  message: string;
+  acknowledged: boolean;
 }

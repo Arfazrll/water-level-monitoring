@@ -1,7 +1,16 @@
+// FrontEnd/src/context/AppContext.tsx
+
 "use client";
 
-import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
-import { WaterLevelData, AlertData, ThresholdSettings, PumpStatus, DeviceStatus } from '@/lib/types';
+import React, { createContext, useContext, useState, useEffect, ReactNode, useCallback } from 'react';
+import { 
+  WaterLevelData, 
+  AlertData, 
+  ThresholdSettings, 
+  PumpStatus, 
+  DeviceStatus,
+  WebSocketMessage  // Import the shared interface
+} from '@/lib/types';
 import { 
   fetchWaterLevelData, 
   fetchAlerts, 
@@ -10,13 +19,13 @@ import {
   acknowledgeAlert,
   acknowledgeAllAlerts,
   controlPump,
-  setPumpMode
+  setPumpMode,
+  fetchPumpStatus,
+  testServerConnection
 } from '@/lib/api';
 
-interface WebSocketMessage {
-  type: string;
-  data: unknown;
-}
+// Import the WebSocket utility
+import { connectWebSocket } from '@/lib/websocket';
 
 interface AppContextType {
   waterLevelData: WaterLevelData[];
@@ -35,16 +44,18 @@ interface AppContextType {
   togglePump: (active: boolean) => Promise<void>;
   togglePumpMode: (mode: 'auto' | 'manual') => Promise<void>;
   testBuzzer: (duration?: number) => Promise<void>;
+  refreshData: () => Promise<void>; 
 }
 
+// Nilai default yang lebih rasional berdasarkan hardware ESP32 dan setup
 const defaultSettings: ThresholdSettings = {
-  warningLevel: 30, // Sesuai dengan ESP32 (30 cm)
-  dangerLevel: 20,  // Sesuai dengan ESP32 (20 cm)
-  maxLevel: 100,
-  minLevel: 0,
-  pumpActivationLevel: 40,
-  pumpDeactivationLevel: 20,
-  unit: 'cm'
+  warningLevel: 30, // Sesuai dengan kode ESP32 (30 cm)
+  dangerLevel: 20,  // Sesuai dengan kode ESP32 (20 cm)
+  maxLevel: 100,    // Tinggi tangki sensor maksimum (100 cm)
+  minLevel: 0,      // Level minimum (0 cm)
+  pumpActivationLevel: 40, // Pompa aktif pada level 40 cm
+  pumpDeactivationLevel: 20, // Pompa mati pada level 20 cm
+  unit: 'cm'        // Satuan pengukuran
 };
 
 const defaultPumpStatus: PumpStatus = {
@@ -54,7 +65,7 @@ const defaultPumpStatus: PumpStatus = {
 };
 
 const defaultDeviceStatus: DeviceStatus = {
-  online: true,
+  online: false, // Mulai dengan asumsi offline sampai terhubung
   lastSeen: new Date().toISOString(),
   batteryLevel: 100,
   signalStrength: 100
@@ -74,21 +85,136 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   const [error, setError] = useState<string | null>(null);
   const [isConnected, setIsConnected] = useState<boolean>(false);
 
-  // Fetch initial data
+  // Penanganan pesan WebSocket
+  const handleWebSocketMessage = useCallback((message: WebSocketMessage) => {
+    try {
+      if (!message || !message.type) {
+        console.warn('Received invalid WebSocket message format', message);
+        return;
+      }
+      
+      if (message.type === 'waterLevel') {
+        // Update water level data
+        const newData = message.data as WaterLevelData;
+        setWaterLevelData(prev => {
+          // Pastikan tidak ada duplikasi timestamp
+          const isDuplicate = prev.some(item => 
+            item.timestamp === newData.timestamp && 
+            item.level === newData.level
+          );
+          
+          if (isDuplicate) {
+            return prev;
+          }
+          
+          // Tambahkan data baru dan jaga ukuran array (max 100 item)
+          const updatedData = [...prev, newData]
+            .sort((a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime())
+            .slice(-100);
+          
+          return updatedData;
+        });
+        
+        setCurrentLevel(newData as WaterLevelData);
+        
+        // Update status perangkat
+        setDeviceStatus(prev => ({
+          ...prev,
+          online: true,
+          lastSeen: new Date().toISOString()
+        }));
+      } 
+      else if (message.type === 'alert') {
+        // Update alerts
+        const newAlert = message.data as AlertData;
+        
+        setAlerts(prev => {
+          const existingAlert = prev.find(a => a.id === newAlert.id);
+          
+          if (existingAlert) {
+            // Update alert yang sudah ada
+            return prev.map(a => a.id === newAlert.id ? newAlert : a);
+          } else {
+            // Tambahkan alert baru
+            return [newAlert, ...prev].sort((a, b) => 
+              new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()
+            );
+          }
+        });
+        
+        // Update buzzer status based on unacknowledged alerts
+        const hasUnacknowledgedAlerts = (message.data as AlertData).acknowledged === false;
+        if (hasUnacknowledgedAlerts) {
+          setBuzzerActive(true);
+        } else {
+          // Cek apakah masih ada alert yang belum diakui
+          setAlerts(prev => {
+            const stillHasUnacknowledged = prev.some(alert => 
+              alert.id !== newAlert.id && !alert.acknowledged
+            );
+            
+            if (!stillHasUnacknowledged) {
+              setBuzzerActive(false);
+            }
+            
+            return prev;
+          });
+        }
+      } 
+      else if (message.type === 'settings') {
+        // Update settings
+        setSettings(prev => ({
+          ...prev,
+          ...message.data as ThresholdSettings
+        }));
+      } 
+      else if (message.type === 'pumpStatus') {
+        // Update pump status
+        setPumpStatus(message.data as PumpStatus);
+      } 
+      else if (message.type === 'deviceStatus') {
+        // Update device status
+        setDeviceStatus(message.data as DeviceStatus);
+      } 
+      else if (message.type === 'error') {
+        console.error('WebSocket error message:', message.data);
+      }
+      else if (message.type === 'connection') {
+        console.log('WebSocket connection message:', message.data);
+        setDeviceStatus(prev => ({
+          ...prev,
+          online: true,
+          lastSeen: new Date().toISOString()
+        }));
+      }
+    } catch (err) {
+      console.error('Error processing WebSocket message:', err);
+    }
+  }, []);
+
+  // Fetch initial data with error handling and retries
   useEffect(() => {
-    const initializeData = async () => {
+    const initializeData = async (retryCount = 0, maxRetries = 3) => {
       try {
         setIsLoading(true);
+        setError(null);
+        
+        // Test server connection first
+        const isServerConnected = await testServerConnection();
+        
+        if (!isServerConnected) {
+          throw new Error('Cannot connect to server. Please check your network connection or server status.');
+        }
         
         // Fetch settings first
         const settingsData = await fetchSettings();
         setSettings(settingsData);
         
         // Fetch water level data
-        const levelData = await fetchWaterLevelData();
-        setWaterLevelData(levelData);
+        const levelData = await fetchWaterLevelData(24); // Last 24 data points
         
-        if (levelData.length > 0) {
+        if (levelData && levelData.length > 0) {
+          setWaterLevelData(levelData);
           setCurrentLevel(levelData[levelData.length - 1]);
         }
         
@@ -96,14 +222,43 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         const alertsData = await fetchAlerts();
         setAlerts(alertsData);
         
+        // Fetch pump status
+        const pumpData = await fetchPumpStatus();
+        setPumpStatus(pumpData);
+        
         // Set buzzer status based on unacknowledged alerts
-        setBuzzerActive(alertsData.some(alert => !alert.acknowledged));
+        const hasUnacknowledgedAlerts = alertsData.some(alert => !alert.acknowledged);
+        setBuzzerActive(hasUnacknowledgedAlerts);
+        
+        // Update device status
+        setDeviceStatus(prev => ({
+          ...prev,
+          online: true,
+          lastSeen: new Date().toISOString()
+        }));
         
         setIsLoading(false);
       } catch (err) {
-        setError('Failed to load initial data');
-        setIsLoading(false);
         console.error('Error initializing data:', err);
+        
+        if (retryCount < maxRetries) {
+          // Exponential backoff for retries
+          const delay = Math.pow(2, retryCount) * 1000;
+          console.log(`Retrying in ${delay/1000} seconds... (Attempt ${retryCount + 1}/${maxRetries})`);
+          
+          setTimeout(() => {
+            initializeData(retryCount + 1, maxRetries);
+          }, delay);
+        } else {
+          setError('Gagal memuat data awal. Coba muat ulang halaman atau periksa koneksi server.');
+          setIsLoading(false);
+          
+          // Set minimal offline status
+          setDeviceStatus(prev => ({
+            ...prev,
+            online: false
+          }));
+        }
       }
     };
     
@@ -112,96 +267,59 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
 
   // WebSocket Connection
   useEffect(() => {
-    let ws: WebSocket | null = null;
-    let reconnectTimer: NodeJS.Timeout;
-    
-    const connectWebSocket = () => {
-      const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-      const host = process.env.NEXT_PUBLIC_WS_URL || '172.20.10.6:5000';
-      const wsUrl = `${protocol}//${host}/ws`;
-      
-      console.log('Connecting to WebSocket:', wsUrl);
-      ws = new WebSocket(wsUrl);
-      
-      ws.onopen = () => {
-        console.log('WebSocket connected');
-        setIsConnected(true);
-      };
-      
-      ws.onmessage = (event) => {
-        try {
-          const message = JSON.parse(event.data) as WebSocketMessage;
-          
-          if (message.type === 'waterLevel') {
-            // Update water level data
-            const newData = message.data as WaterLevelData;
-            setWaterLevelData(prev => {
-              const updatedData = [...prev, newData].slice(-100);
-              return updatedData;
-            });
-            setCurrentLevel(newData as WaterLevelData);
-          } else if (message.type === 'alert') {
-            // Update alerts
-            const newAlert = message.data as AlertData;
-            setAlerts(prev => {
-              const existingAlert = prev.find(a => a.id === newAlert.id);
-              if (existingAlert) {
-                return prev.map(a => a.id === newAlert.id ? newAlert : a);
-              } else {
-                return [newAlert, ...prev];
-              }
-            });
-            
-            // Update buzzer status based on unacknowledged alerts
-            const hasUnacknowledgedAlerts = (message.data as AlertData).acknowledged === false;
-            if (hasUnacknowledgedAlerts) {
-              setBuzzerActive(true);
-            }
-          } else if (message.type === 'settings') {
-            // Update settings
-            setSettings(message.data as ThresholdSettings);
-          } else if (message.type === 'pumpStatus') {
-            // Update pump status
-            setPumpStatus(message.data as PumpStatus);
-          } else if (message.type === 'deviceStatus') {
-            // Update device status (this uses setDeviceStatus to fix the unused variable)
-            setDeviceStatus(message.data as DeviceStatus);
-          }
-        } catch (err) {
-          console.error('Error processing WebSocket message:', err);
-        }
-      };
-      
-      ws.onclose = () => {
-        console.log('WebSocket disconnected, trying to reconnect...');
-        setIsConnected(false);
-        
-        // Schedule reconnection
-        reconnectTimer = setTimeout(connectWebSocket, 3000);
-      };
-      
-      ws.onerror = (error) => {
-        console.error('WebSocket error:', error);
-        setIsConnected(false);
-        ws?.close();
-      };
-      
-      // We don't need to save the socket instance since we're not using it elsewhere
-      // This fixes the 'socket' is assigned a value but never used error
-    };
-    
-    connectWebSocket();
+    // Use the improved WebSocket implementation
+    const cleanupWebSocket = connectWebSocket(setIsConnected, handleWebSocketMessage);
     
     // Cleanup on unmount
-    return () => {
-      if (ws) {
-        ws.close();
+    return cleanupWebSocket;
+  }, [handleWebSocketMessage]);
+
+  // Refresh data function that can be called manually
+  // Modified to return void instead of boolean
+  const refreshData = async (): Promise<void> => {
+    try {
+      setIsLoading(true);
+      setError(null);
+      
+      // Fetch all data in parallel
+      const [settingsData, levelData, alertsData, pumpData] = await Promise.all([
+        fetchSettings(),
+        fetchWaterLevelData(24),
+        fetchAlerts(),
+        fetchPumpStatus()
+      ]);
+      
+      // Update state with fresh data
+      setSettings(settingsData);
+      
+      if (levelData && levelData.length > 0) {
+        setWaterLevelData(levelData);
+        setCurrentLevel(levelData[levelData.length - 1]);
       }
-      if (reconnectTimer) {
-        clearTimeout(reconnectTimer);
-      }
-    };
-  }, []);
+      
+      setAlerts(alertsData);
+      setPumpStatus(pumpData);
+      
+      // Update buzzer status
+      const hasUnacknowledgedAlerts = alertsData.some(alert => !alert.acknowledged);
+      setBuzzerActive(hasUnacknowledgedAlerts);
+      
+      // Update device status
+      setDeviceStatus(prev => ({
+        ...prev,
+        online: true,
+        lastSeen: new Date().toISOString()
+      }));
+      
+      setIsLoading(false);
+      
+      // No return value (void)
+    } catch (err) {
+      console.error('Error refreshing data:', err);
+      setError('Gagal memperbarui data. Coba lagi atau periksa koneksi server.');
+      setIsLoading(false);
+    }
+  };
 
   // Update threshold settings
   const updateThresholds = async (newSettings: Partial<ThresholdSettings>) => {
@@ -210,7 +328,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       await updateSettings(updatedSettings);
       setSettings(updatedSettings);
     } catch (err) {
-      setError('Failed to update settings');
+      setError('Gagal memperbarui pengaturan ambang batas');
       console.error('Error updating settings:', err);
       throw err;
     }
@@ -219,7 +337,11 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   // Acknowledge alert
   const handleAcknowledgeAlert = async (alertId: string) => {
     try {
-      await acknowledgeAlert(alertId);
+      const result = await acknowledgeAlert(alertId);
+      
+      if (!result.success) {
+        throw new Error(result.message);
+      }
       
       // Update alerts in state
       setAlerts(prev => 
@@ -238,7 +360,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         setBuzzerActive(false);
       }
     } catch (err) {
-      setError('Failed to acknowledge alert');
+      setError('Gagal mengakui peringatan');
       console.error('Error acknowledging alert:', err);
       throw err;
     }
@@ -247,7 +369,11 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   // Acknowledge all alerts
   const handleAcknowledgeAllAlerts = async () => {
     try {
-      await acknowledgeAllAlerts();
+      const result = await acknowledgeAllAlerts();
+      
+      if (!result.success) {
+        throw new Error(result.message);
+      }
       
       // Update all alerts in state
       setAlerts(prev => 
@@ -257,7 +383,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       // Update buzzer status
       setBuzzerActive(false);
     } catch (err) {
-      setError('Failed to acknowledge all alerts');
+      setError('Gagal mengakui semua peringatan');
       console.error('Error acknowledging all alerts:', err);
       throw err;
     }
@@ -274,7 +400,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         lastActivated: active ? new Date().toISOString() : prev.lastActivated
       }));
     } catch (err) {
-      setError('Failed to control pump');
+      setError('Gagal mengontrol pompa');
       console.error('Error controlling pump:', err);
       throw err;
     }
@@ -290,7 +416,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         mode
       }));
     } catch (err) {
-      setError('Failed to change pump mode');
+      setError('Gagal mengubah mode pompa');
       console.error('Error changing pump mode:', err);
       throw err;
     }
@@ -341,7 +467,8 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     acknowledgeAllAlerts: handleAcknowledgeAllAlerts,
     togglePump,
     togglePumpMode,
-    testBuzzer
+    testBuzzer,
+    refreshData
   };
 
   return <AppContext.Provider value={value}>{children}</AppContext.Provider>;
