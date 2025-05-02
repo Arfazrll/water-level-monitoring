@@ -246,16 +246,6 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         if (levelData && levelData.length > 0) {
           setWaterLevelData(levelData);
           setCurrentLevel(levelData[levelData.length - 1]);
-        } else {
-          console.log('Tidak ada data level air tersedia, menggunakan data fallback');
-          // Penyediaan data simulasi untuk mencegah state null
-          const fallbackData: WaterLevelData[] = Array.from({ length: 5 }, (_, i) => ({
-            timestamp: new Date(Date.now() - (4 - i) * 3600000).toISOString(),
-            level: 50 + Math.random() * 10,
-            unit: 'cm'
-          }));
-          setWaterLevelData(fallbackData);
-          setCurrentLevel(fallbackData[fallbackData.length - 1]);
         }
         
         // Inisialisasi state peringatan dan status pompa
@@ -297,24 +287,12 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
             ...prev,
             online: false
           }));
-          
-          // Penyediaan data fallback untuk mendukung fungsionalitas UI dasar
-          if (waterLevelData.length === 0) {
-            // Generasi data simulasi untuk visualisasi
-            const mockData: WaterLevelData[] = Array.from({ length: 5 }, (_, i) => ({
-              timestamp: new Date(Date.now() - (4 - i) * 3600000).toISOString(),
-              level: 50 + Math.random() * 10,
-              unit: 'cm'
-            }));
-            setWaterLevelData(mockData);
-            setCurrentLevel(mockData[mockData.length - 1]);
-          }
         }
       }
     };
     
     initializeData();
-  },);
+  }, []);
 
   /**
    * Inisialisasi koneksi WebSocket dan implementasi cleanup

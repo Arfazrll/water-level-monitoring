@@ -1,4 +1,4 @@
-// BackEnd/routes/api/esp32.ts (Fixed version)
+// BackEnd/routes/api/esp32.ts (Perbaikan)
 
 import express, { Request, Response, RequestHandler } from 'express';
 import WaterLevel from '../../models/WaterLevel';
@@ -207,6 +207,14 @@ const handleEsp32Data: RequestHandler = async (req: Request, res: Response): Pro
       }
     }
     
+    // Handle automatic pump control if in auto mode
+    if (pumpMode === 'auto') {
+      const shouldActivatePump = waterLevel >= thresholds.pumpActivationLevel;
+      const shouldDeactivatePump = waterLevel <= thresholds.pumpDeactivationLevel;
+      
+      // Tambahkan kode kendali pompa di sini jika diperlukan
+    }
+    
     // Success response dengan format yang konsisten
     res.status(201).json({
       success: true,
@@ -252,109 +260,5 @@ router.get('/test', (req, res) => {
 
 // Route definition
 router.post('/data', handleEsp32Data);
-
-// Endpoint untuk simulasi data sensor (berguna untuk testing)
-router.post('/simulate', async (req, res) => {
-  try {
-    // Validasi request
-    const { distance, count = 1, interval = 0 } = req.body;
-    
-    if (distance === undefined || typeof distance !== 'number') {
-      res.status(400).json({
-        success: false,
-        message: 'Parameter distance diperlukan dan harus berupa angka',
-        error: 'VALIDATION_ERROR'
-      });
-      return;
-    }
-    
-    if (count < 1 || count > 100) {
-      res.status(400).json({
-        success: false,
-        message: 'Parameter count harus antara 1 dan 100',
-        error: 'VALIDATION_ERROR'
-      });
-      return;
-    }
-    
-    // Jalankan simulasi
-    const results = [];
-    
-    // Untuk simulasi tunggal, jalankan langsung
-    if (count === 1) {
-      const result = await handleSimulation(distance);
-      results.push(result);
-    } 
-    // Untuk simulasi multiple dengan interval
-    else {
-      for (let i = 0; i < count; i++) {
-        const randomVariation = (Math.random() * 10) - 5; // Variasi -5 sampai +5
-        const adjustedDistance = Math.max(0, distance + randomVariation);
-        
-        const result = await handleSimulation(adjustedDistance);
-        results.push(result);
-        
-        // Tunggu interval jika diperlukan dan bukan iterasi terakhir
-        if (interval > 0 && i < count - 1) {
-          await new Promise(resolve => setTimeout(resolve, interval));
-        }
-      }
-    }
-    
-    res.json({
-      success: true,
-      message: `Berhasil mensimulasikan ${count} data sensor`,
-      data: {
-        count: results.length,
-        results
-      }
-    });
-  } catch (error) {
-    console.error('Error in simulation endpoint:', error);
-    
-    res.status(500).json({
-      success: false,
-      message: 'Gagal menjalankan simulasi',
-      error: error instanceof Error ? error.message : 'Unknown error'
-    });
-  }
-});
-
-// Helper function untuk endpoint simulasi
-async function handleSimulation(distance: number) {
-  // Buat fake request untuk handleEsp32Data
-  const fakeReq = {
-    body: { distance }
-  } as Request;
-  
-  // Buat fake response untuk mengumpulkan output
-  const responseData = {
-    statusCode: 200,
-    body: null as any,
-    headersSent: false
-  };
-  
-  const fakeRes = {
-    status: (code: number) => {
-      responseData.statusCode = code;
-      return fakeRes;
-    },
-    json: (data: any) => {
-      responseData.body = data;
-      responseData.headersSent = true;
-      return fakeRes;
-    }
-  } as Response;
-  
-  // Jalankan handler
-  await handleEsp32Data(fakeReq, fakeRes, () => {});
-  
-  // Return data hasil
-  return {
-    statusCode: responseData.statusCode,
-    success: responseData.body?.success || false,
-    data: responseData.body?.data || null
-  };
-}
 
 export default router;

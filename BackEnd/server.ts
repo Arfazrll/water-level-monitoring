@@ -1,4 +1,4 @@
-// BackEnd/server.ts
+// BackEnd/server.ts (Perbaikan)
 
 import express, { Request, Response, NextFunction } from 'express';
 import http from 'http';
@@ -9,7 +9,6 @@ import cors from 'cors';
 import connectDB from './config/db';
 import { verifyEmailConnection } from './config/mailer';
 import { initWebSocketServer, getWebSocketStatus } from './services/wsService';
-import { simulateWaterLevelReading } from './utils/helpers';
 import esp32Routes from './routes/api/esp32';
 
 // Import sensor service
@@ -30,6 +29,7 @@ import waterLevelRoutes from './routes/api/Water-level';
 import alertsRoutes from './routes/api/alerts';
 import pumpRoutes from './routes/api/pump';
 import settingsRoutes from './routes/api/settings';
+import authRoutes from './routes/auth';
 
 // Import services
 import { broadcastWaterLevel, broadcastAlert } from './services/wsService';
@@ -51,8 +51,7 @@ let serverStatus = {
   emailVerified: false,
   wsInitialized: false,
   sensorInitialized: false,
-  serverStartTime: new Date(),
-  simulationActive: false
+  serverStartTime: new Date()
 };
 
 /**
@@ -255,6 +254,7 @@ app.use('/api/alerts', alertsRoutes);
 app.use('/api/pump', pumpRoutes);
 app.use('/api/settings', settingsRoutes);
 app.use('/api/esp32', esp32Routes);
+app.use('/api/auth', authRoutes);
 
 // Endpoint root untuk healthcheck
 app.get('/', (req: Request, res: Response) => {
@@ -284,8 +284,7 @@ app.get('/api/status', (req: Request, res: Response) => {
         lastBroadcast: wsStatus?.lastBroadcast || null
       },
       sensor: {
-        simulation: process.env.SIMULATE_SENSOR === 'true',
-        active: serverStatus.simulationActive,
+        active: serverStatus.sensorInitialized,
         buzzerActive: getBuzzerStatus()
       },
       email: {
@@ -343,60 +342,25 @@ const startServer = async () => {
     console.warn('Application will run without WebSocket functionality');
   }
   
-  // Inisialisasi sensor berdasarkan mode operasional
-  if (process.env.NODE_ENV === 'production' && process.env.SIMULATE_SENSOR !== 'true') {
-    // Inisialisasi untuk sensor fisik dalam lingkungan produksi
-    try {
-      initSensor();
-      serverStatus.sensorInitialized = true;
-      
-      // Registrasi event handler untuk pembacaan sensor
-      sensorEvents.on('reading', handleSensorReading);
-      
-      console.log('Sensor hardware diinisialisasi');
-    } catch (error) {
-      console.error('Error initializing sensor hardware:', error);
-      serverStatus.sensorInitialized = false;
-      console.warn('Fallback to simulation mode due to sensor initialization failure');
-      process.env.SIMULATE_SENSOR = 'true';
-    }
-  } else {
-    console.log('Berjalan dalam mode simulasi sensor');
+  // Inisialisasi sensor untuk hardware fisik
+  try {
+    initSensor();
+    serverStatus.sensorInitialized = true;
+    
+    // Registrasi event handler untuk pembacaan sensor
+    sensorEvents.on('reading', handleSensorReading);
+    
+    console.log('Sensor hardware diinisialisasi');
+  } catch (error) {
+    console.error('Error initializing sensor hardware:', error);
+    serverStatus.sensorInitialized = false;
+    console.warn('Sensor initialization failed. Check hardware connections and configuration.');
   }
   
   // Inisialisasi listener server
   server.listen(PORT, () => {
     console.log(`Server berjalan di port ${PORT}`);
     console.log(`Mode server: ${process.env.NODE_ENV || 'development'}`);
-    
-    // Aktivasi simulasi pembacaan sensor dalam mode development
-    if ((process.env.NODE_ENV === 'development' || !serverStatus.sensorInitialized) && 
-        process.env.SIMULATE_SENSOR === 'true') {
-      console.log('Memulai simulasi sensor ketinggian air...');
-      serverStatus.simulationActive = true;
-      
-      // Simulasi pembacaan periodik dengan interval 10 detik
-      const simulationInterval = setInterval(() => {
-        simulateWaterLevelReading(`http://localhost:${PORT}`)
-          .catch(error => {
-            console.error('Error dalam simulasi ketinggian air:', error);
-            // Terminasi simulasi jika koneksi database tidak tersedia
-            if (error.message && error.message.includes('buffering timed out')) {
-              console.warn('Menghentikan simulasi karena koneksi database tidak tersedia');
-              clearInterval(simulationInterval);
-              serverStatus.simulationActive = false;
-            }
-          });
-      }, 10000);
-      
-      // Registrasi signal handler untuk graceful shutdown
-      process.on('SIGINT', () => {
-        console.log('Menghentikan simulasi...');
-        clearInterval(simulationInterval);
-        serverStatus.simulationActive = false;
-        process.exit(0);
-      });
-    }
   });
 };
 

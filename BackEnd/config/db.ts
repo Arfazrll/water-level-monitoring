@@ -2,30 +2,23 @@ import mongoose from 'mongoose';
 import dotenv from 'dotenv';
 
 dotenv.config();
-
-// Ambil string koneksi MongoDB dari variabel lingkungan
 const MONGO_URI = process.env.MONGO_URI || 'mongodb://127.0.0.1:27017/water-monitoring';
 
-// Variable untuk retry management
 let isConnecting = false;
 let connectionAttempts = 0;
 const MAX_RETRIES = 5;
 
-// Fungsi untuk menghubungkan ke database dengan retry mechanism
 const connectDB = async (): Promise<void> => {
-  // Mencegah multiple koneksi simultan
   if (isConnecting) return;
   isConnecting = true;
   
   try {
     console.log('Mencoba terhubung ke MongoDB...');
     
-    // Pastikan string koneksi tersedia
     if (!MONGO_URI) {
       throw new Error('String koneksi MongoDB tidak ditemukan di variabel lingkungan');
     }
 
-    // Log koneksi yang digunakan (sanitasi password)
     const sanitizedUri = MONGO_URI.replace(/\/\/([^:]+):([^@]+)@/, '//***:***@');
     console.log(`Menggunakan connection string: ${sanitizedUri}`);
 
@@ -36,14 +29,11 @@ const connectDB = async (): Promise<void> => {
       family: 4,                        // Paksa gunakan IPv4
     };
 
-    // Connect ke MongoDB
     await mongoose.connect(MONGO_URI, options);
     
-    // Reset counter jika berhasil
     connectionAttempts = 0;
     isConnecting = false;
     
-    // Setup event listeners untuk memantau koneksi
     mongoose.connection.on('connected', () => {
       console.log('MongoDB connection established');
     });
@@ -61,17 +51,14 @@ const connectDB = async (): Promise<void> => {
     
     console.log('MongoDB berhasil terhubung');
     
-    // Cek database yang aktif
     const db = mongoose.connection.db;
     if (db) {
       console.log(`Terhubung ke database: ${db.databaseName}`);
       
-      // Periksa dan buat collection jika belum ada
       const collections = await db.listCollections().toArray();
       const collectionNames = collections.map(c => c.name);
       console.log('Collections yang tersedia:', collectionNames);
       
-      // Buat collection yang diperlukan jika belum ada
       const requiredCollections = ['waterlevels', 'alerts', 'settings', 'pumplogs', 'users'];
       for (const collection of requiredCollections) {
         if (!collectionNames.includes(collection)) {
@@ -84,11 +71,9 @@ const connectDB = async (): Promise<void> => {
     }
     
   } catch (error: any) {
-    // Increment counter dan reset flag
     connectionAttempts++;
     isConnecting = false;
     
-    // Handle berbagai jenis error
     if (error.name === 'MongoServerSelectionError' || error.code === 'ECONNREFUSED') {
       console.error(`Error koneksi MongoDB: Server tidak dapat dijangkau (${connectionAttempts}/${MAX_RETRIES})`);
       console.error('MongoDB mungkin tidak berjalan atau tidak dapat diakses.');
