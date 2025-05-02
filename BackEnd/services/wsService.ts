@@ -33,9 +33,16 @@ let wsStatus = {
  */
 export const initWebSocketServer = (server: http.Server): WebSocketServer => {
   try {
+    // Periksa apakah wss sudah diinisialisasi untuk mencegah duplikasi
+    if (wss) {
+      console.log('WebSocket server sudah diinisialisasi');
+      return wss;
+    }
+    
     wss = new WebSocketServer({ 
       server,
       path: '/ws',
+      // Gunakan kompresi untuk mengoptimalkan bandwidth
       perMessageDeflate: {
         zlibDeflateOptions: {
           chunkSize: 1024,
@@ -399,7 +406,14 @@ export const broadcastSettings = (settings: ThresholdSettings): boolean => {
  * @returns Status keberhasilan broadcast
  */
 function broadcast(payload: any): boolean {
-  if (!wss || wss.clients.size === 0) {
+  // Periksa apakah server WebSocket sudah diinisialisasi
+  if (!wss) {
+    console.warn('Server WebSocket null, tidak dapat menyiarkan pesan');
+    return false;
+  }
+  
+  // Periksa apakah ada klien yang terhubung
+  if (wss.clients.size === 0) {
     console.log('Tidak ada klien WebSocket terhubung, melewati broadcast');
     return false;
   }
@@ -408,18 +422,25 @@ function broadcast(payload: any): boolean {
   let successCount = 0;
   let failCount = 0;
   
-  wss.clients.forEach((client) => {
-    if (client.readyState === WebSocket.OPEN) {
-      try {
-        const jsonPayload = JSON.stringify(payload);
-        client.send(jsonPayload);
-        successCount++;
-      } catch (error) {
-        console.error('Error broadcasting ke klien:', error);
-        failCount++;
+  try {
+    const jsonPayload = JSON.stringify(payload);
+    
+    // Broadcast ke semua klien terhubung
+    wss.clients.forEach((client) => {
+      if (client.readyState === WebSocket.OPEN) {
+        try {
+          client.send(jsonPayload);
+          successCount++;
+        } catch (error) {
+          console.error('Error broadcasting ke klien:', error);
+          failCount++;
+        }
       }
-    }
-  });
+    });
+  } catch (error) {
+    console.error('Error saat JSON stringify payload broadcast:', error);
+    return false;
+  }
   
   if (successCount > 0) {
     console.log(`Broadcast berhasil ke ${successCount} klien`);

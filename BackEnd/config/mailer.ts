@@ -1,5 +1,4 @@
-// BackEnd/config/mailer.ts
-
+// BackEnd/config/mailer.ts (Perbaikan)
 import nodemailer from 'nodemailer';
 import dotenv from 'dotenv';
 
@@ -7,6 +6,7 @@ dotenv.config();
 
 // Validasi format email
 const isValidEmail = (email: string): boolean => {
+  if (!email) return false;
   const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
   return emailRegex.test(email);
 };
@@ -14,7 +14,7 @@ const isValidEmail = (email: string): boolean => {
 // Validasi email konfigurasi
 const userEmail = process.env.EMAIL_USER;
 if (!userEmail || !isValidEmail(userEmail)) {
-  console.warn(`Email user tidak valid atau tidak dikonfigurasi: "${userEmail}". Email notifikasi tidak akan berfungsi.`);
+  console.warn(`Email user tidak valid atau tidak dikonfigurasi. Email notifikasi tidak akan berfungsi.`);
 }
 
 // Fungsi untuk membuat transporter
@@ -26,6 +26,9 @@ const createTransporter = () => {
     return null;
   }
 
+  // PERBAIKAN: Nonaktifkan debug dan logging di production
+  const enableDebug = process.env.NODE_ENV === 'development' && process.env.EMAIL_DEBUG === 'true';
+  
   // Coba buat transporter dengan kredensial yang telah dikonfigurasi
   try {
     return nodemailer.createTransport({
@@ -36,9 +39,9 @@ const createTransporter = () => {
         user: process.env.EMAIL_USER,
         pass: process.env.EMAIL_PASSWORD
       },
-      // Tambahkan opsi tambahan untuk lebih banyak logging dan debug
-      debug: process.env.NODE_ENV === 'development',
-      logger: process.env.NODE_ENV === 'development'
+      // PERBAIKAN: Nonaktifkan debug dan logger di production untuk menghindari eksposur kredensial
+      debug: enableDebug,
+      logger: enableDebug
     });
   } catch (error) {
     console.error('Error creating email transporter:', error);
@@ -76,6 +79,7 @@ export const verifyEmailConnection = async (): Promise<boolean> => {
         text: 'Sistem monitoring level air berhasil dikonfigurasi.',
         html: '<p>Sistem monitoring level air berhasil dikonfigurasi.</p>'
       });
+      // PERBAIKAN: Kurangi log yang mengandung informasi sensitif
       console.log('Email tes berhasil dikirim:', info.messageId);
     } catch (testError) {
       console.error('Gagal mengirim email tes:', testError);

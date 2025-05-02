@@ -1,3 +1,4 @@
+// FrontEnd/src/lib/websocket.ts (Perbaikan)
 import { Dispatch, SetStateAction } from 'react';
 import { WebSocketMessage } from './types';
 
@@ -41,9 +42,15 @@ export const connectWebSocket = (
       }
     }
     
-    // Determinasi URL WebSocket berdasarkan konfigurasi lingkungan
+    // PERBAIKAN: Konfigurasi URL WebSocket yang lebih tepat
     const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-    const host = process.env.NEXT_PUBLIC_WS_URL || `${window.location.hostname}:5000`;
+    let host = process.env.NEXT_PUBLIC_WS_URL || window.location.host;
+    
+    // Jika tidak ada port, tambahkan port default untuk backend
+    if (host === window.location.hostname) {
+      host = `${host}:5000`;
+    }
+    
     const wsUrl = `${protocol}//${host}/ws`;
     
     console.log('Menghubungkan ke WebSocket:', wsUrl);

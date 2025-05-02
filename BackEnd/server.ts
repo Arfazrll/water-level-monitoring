@@ -26,7 +26,6 @@ import Settings from './models/Setting';
 import Alert from './models/Alert';
 
 // Import routes
-import authRoutes from './routes/auth';
 import waterLevelRoutes from './routes/api/Water-level';
 import alertsRoutes from './routes/api/alerts';
 import pumpRoutes from './routes/api/pump';
@@ -251,7 +250,6 @@ app.use((err: Error, req: Request, res: Response, next: NextFunction) => {
 });
 
 // Registrasi rute API
-app.use('/api/auth', authRoutes);
 app.use('/api/water-level', waterLevelRoutes);
 app.use('/api/alerts', alertsRoutes);
 app.use('/api/pump', pumpRoutes);
