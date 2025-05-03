@@ -1,15 +1,30 @@
 "use client";
 
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
-import { useAppContext } from '@/context/AppContext';
+import { useAppContext } from '../../context/AppContext';
 
-const Navbar: React.FC = () => {
+const Navbar = () => {
   const { deviceStatus, alerts } = useAppContext();
+  const [currentTime, setCurrentTime] = useState('');
   
-  // Hitung peringatan yang belum diketahui
+  // Count unacknowledged alerts
   const unacknowledgedAlerts = alerts.filter(alert => !alert.acknowledged).length;
-  
+
+  // Update time only on client-side after component mounts
+  useEffect(() => {
+    // Set initial time
+    setCurrentTime(new Date().toLocaleString());
+    
+    // Optional: update time every second
+    const timer = setInterval(() => {
+      setCurrentTime(new Date().toLocaleString());
+    }, 1000);
+    
+    // Cleanup interval on unmount
+    return () => clearInterval(timer);
+  }, []);
+
   return (
     <nav className="bg-white shadow-sm border-b border-gray-200">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -25,26 +40,26 @@ const Navbar: React.FC = () => {
                 strokeLinecap="round" 
                 strokeLinejoin="round"
               >
-                <path d="M12 2v20M2 12h20M12 9a3 3 0 0 0 0 6h0a3 3 0 0 0 0-6z" />
+                <path d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
               </svg>
               <span className="ml-2 text-xl font-bold text-gray-800">Monitor Air</span>
             </Link>
           </div>
 
           <div className="flex items-center">
-            {/* Indikator status perangkat */}
+            {/* Status indicator */}
             <div className="flex items-center mr-4">
               <div className={`h-3 w-3 rounded-full ${deviceStatus.online ? 'bg-green-500' : 'bg-red-500'}`}></div>
               <span className="ml-2 text-sm font-medium text-gray-600">
-                {deviceStatus.online ? 'Daring' : 'Luring'}
+                {deviceStatus.online ? 'Terhubung' : 'Terputus'}
               </span>
             </div>
             
-            {/* Indikator peringatan */}
+            {/* Alert indicator */}
             {unacknowledgedAlerts > 0 && (
               <Link href="/history" className="flex items-center text-red-600 mr-4">
                 <svg 
-                  className="h-6 w-6" 
+                  className="h-6 w-6 animate-pulse" 
                   fill="none" 
                   viewBox="0 0 24 24" 
                   stroke="currentColor"
@@ -59,6 +74,11 @@ const Navbar: React.FC = () => {
                 <span className="ml-1 text-sm font-bold">{unacknowledgedAlerts}</span>
               </Link>
             )}
+            
+            {/* Time indicator - Client-side only render */}
+            <div className="text-sm text-gray-600">
+              {currentTime}
+            </div>
           </div>
         </div>
       </div>

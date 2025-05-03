@@ -1,31 +1,51 @@
 import React from 'react';
-import { useAppContext } from '@/context/AppContext';
+import { PumpStatus, ThresholdSettings } from '../../context/AppContext';
 
-const PumpControl: React.FC = () => {
-  const { pumpStatus, togglePump, togglePumpMode, settings } = useAppContext();
+// Definisi tipe props untuk PumpControl
+interface PumpControlProps {
+  pumpStatus: PumpStatus;
+  settings: ThresholdSettings;
+  onTogglePump: (active: boolean) => Promise<void>;
+  onToggleMode: (mode: 'auto' | 'manual') => Promise<void>;
+}
 
+const PumpControl: React.FC<PumpControlProps> = ({ pumpStatus, settings, onTogglePump, onToggleMode }) => {
+  // Handle pump toggle
   const handleTogglePump = () => {
-    togglePump(!pumpStatus.isActive);
+    onTogglePump(!pumpStatus.isActive);
   };
 
+  // Handle mode toggle
   const handleToggleMode = () => {
-    togglePumpMode(pumpStatus.mode === 'auto' ? 'manual' : 'auto');
+    onToggleMode(pumpStatus.mode === 'auto' ? 'manual' : 'auto');
   };
+  
+  // Format the last activation time
+  const formattedLastActivated = pumpStatus.lastActivated 
+    ? new Date(pumpStatus.lastActivated).toLocaleString()
+    : 'Tidak ada data';
 
   return (
     <div className="bg-white p-4 rounded-lg shadow-md">
       <h2 className="text-lg font-semibold text-gray-800 mb-4">Kontrol Pompa</h2>
       
-      <div className="flex items-center mb-6">
-        <div className={`w-4 h-4 rounded-full mr-2 ${pumpStatus.isActive ? 'bg-green-500' : 'bg-gray-300'}`}></div>
-        <span className="text-sm font-medium text-gray-700">
-          Status: {pumpStatus.isActive ? 'Aktif' : 'Tidak Aktif'}
+      {/* Pump status indicator */}
+      <div className="flex items-center justify-between mb-6 p-3 rounded-md bg-gray-50">
+        <div className="flex items-center">
+          <div className={`w-4 h-4 rounded-full mr-2 ${pumpStatus.isActive ? 'bg-green-500' : 'bg-gray-300'}`}></div>
+          <span className="text-sm font-medium text-gray-700">
+            Status Pompa
+          </span>
+        </div>
+        <span className={`text-sm font-medium ${pumpStatus.isActive ? 'text-green-600' : 'text-gray-500'}`}>
+          {pumpStatus.isActive ? 'Aktif' : 'Tidak Aktif'}
         </span>
       </div>
       
+      {/* Mode selection */}
       <div className="mb-6">
         <div className="flex justify-between mb-2">
-          <span className="text-sm font-medium text-gray-700">Mode:</span>
+          <span className="text-sm font-medium text-gray-700">Mode Operasi:</span>
           <span className={`text-sm font-medium ${pumpStatus.mode === 'auto' ? 'text-blue-600' : 'text-purple-600'}`}>
             {pumpStatus.mode === 'auto' ? 'Otomatis' : 'Manual'}
           </span>
@@ -49,42 +69,37 @@ const PumpControl: React.FC = () => {
         </div>
       </div>
       
+      {/* Manual control button (only visible in manual mode) */}
       {pumpStatus.mode === 'manual' && (
         <div className="mb-6">
           <button
             onClick={handleTogglePump}
-            className={`w-full py-2 px-4 rounded-md text-white font-medium ${
+            className={`w-full py-3 px-4 rounded-md text-white font-medium ${
               pumpStatus.isActive
                 ? 'bg-red-500 hover:bg-red-600'
                 : 'bg-green-500 hover:bg-green-600'
-            }`}
+            } transition-colors`}
           >
             {pumpStatus.isActive ? 'Matikan Pompa' : 'Nyalakan Pompa'}
           </button>
         </div>
       )}
       
-      <div className="text-sm text-gray-600">
-        <h3 className="font-medium mb-2">Pengaturan Kontrol Otomatis:</h3>
-        <div className="grid grid-cols-2 gap-y-2">
-          <div>
-            <span className="font-medium">Aktifkan pada:</span>
-          </div>
-          <div>
-            {settings.pumpActivationLevel} {settings.unit}
-          </div>
-          <div>
-            <span className="font-medium">Nonaktifkan pada:</span>
-          </div>
-          <div>
-            {settings.pumpDeactivationLevel} {settings.unit}
-          </div>
+      {/* Auto settings info */}
+      <div className="p-3 bg-blue-50 rounded-md">
+        <h3 className="text-sm font-medium text-blue-700 mb-2">Pengaturan Kontrol Otomatis:</h3>
+        <div className="grid grid-cols-2 gap-y-1 text-sm text-gray-600">
+          <div>Aktifkan pada:</div>
+          <div className="font-medium">{settings.pumpActivationLevel} {settings.unit}</div>
+          <div>Nonaktifkan pada:</div>
+          <div className="font-medium">{settings.pumpDeactivationLevel} {settings.unit}</div>
         </div>
       </div>
       
+      {/* Last activation time */}
       {pumpStatus.lastActivated && (
-        <div className="mt-4 text-xs text-gray-500">
-          Terakhir diaktifkan: {new Date(pumpStatus.lastActivated).toLocaleString()}
+        <div className="mt-4 pt-3 border-t border-gray-100 text-xs text-gray-500">
+          Terakhir diaktifkan: {formattedLastActivated}
         </div>
       )}
     </div>

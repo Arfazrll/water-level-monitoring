@@ -1,84 +1,65 @@
-import { useState, useEffect } from 'react';
-import { WaterLevelData } from '@/lib/types';
-import { fetchWaterLevelData } from '@/lib/api';
+// src/hooks/useWaterLevel.ts
+import { useState, useEffect, useCallback } from 'react';
+import { WaterLevelData } from '../context/AppContext';
 
-interface UseWaterLevelOptions {
+interface UseWaterLevelDataOptions {
   limit?: number;
-  pollingInterval?: number; // in milliseconds
-  initialData?: WaterLevelData[];
+  pollingInterval?: number;
 }
 
-export function useWaterLevel({
-  limit = 24,
-  pollingInterval = 5000, // 5 seconds default
-  initialData = []
-}: UseWaterLevelOptions = {}) {
-  const [data, setData] = useState<WaterLevelData[]>(initialData);
-  const [currentLevel, setCurrentLevel] = useState<WaterLevelData | null>(
-    initialData.length > 0 ? initialData[initialData.length - 1] : null
-  );
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000/api';
+
+export const useWaterLevelData = ({ 
+  limit = 24, 
+  pollingInterval = 5000 
+}: UseWaterLevelDataOptions = {}) => {
+  const [data, setData] = useState<WaterLevelData[]>([]);
+  const [currentLevel, setCurrentLevel] = useState<WaterLevelData | null>(null);
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
 
-  // Fetch initial data
-  useEffect(() => {
-    const fetchData = async () => {
-      try {
-        setIsLoading(true);
-        setError(null);
-        
-        const waterLevelData = await fetchWaterLevelData(limit);
-        setData(waterLevelData);
-        
-        if (waterLevelData.length > 0) {
-          setCurrentLevel(waterLevelData[waterLevelData.length - 1]);
-        }
-        
-        setIsLoading(false);
-      } catch (err) {
-        console.error('Error fetching water level data:', err);
-        setError('Failed to fetch water level data');
-        setIsLoading(false);
+  const fetchData = useCallback(async () => {
+    try {
+      const response = await fetch(`${API_BASE_URL}/water-level?limit=${limit}`);
+      
+      if (!response.ok) {
+        throw new Error('Failed to fetch water level data');
       }
-    };
-    
-    fetchData();
+      
+      const result = await response.json();
+      
+      if (result.success && result.data && Array.isArray(result.data)) {
+        setData(result.data);
+        
+        if (result.data.length > 0) {
+          setCurrentLevel(result.data[result.data.length - 1]);
+        }
+      } else {
+        setData([]);
+        setCurrentLevel(null);
+      }
+      
+      setIsLoading(false);
+    } catch (err) {
+      console.error('Error fetching water level data:', err);
+      setError('Failed to fetch water level data');
+      setIsLoading(false);
+    }
   }, [limit]);
 
-  // Setup polling for real-time updates
+  // Initial fetch
   useEffect(() => {
-    if (pollingInterval <= 0) return; // Disable polling if interval is 0 or negative
+    fetchData();
+  }, [fetchData]);
+
+  // Polling
+  useEffect(() => {
+    if (pollingInterval <= 0) return;
     
-    const intervalId = setInterval(async () => {
-      try {
-        // Fetch just the latest reading
-        const latestData = await fetchWaterLevelData(1);
-        
-        if (latestData.length > 0) {
-          const latestReading = latestData[0];
-          
-          setData(prev => {
-            // Add the new reading and keep only the last 'limit' readings
-            const updatedData = [...prev, latestReading].slice(-limit);
-            return updatedData;
-          });
-          
-          setCurrentLevel(latestReading);
-        }
-      } catch (err) {
-        console.error('Error polling water level data:', err);
-        // We don't set the error state here to avoid disrupting the UI
-        // for transient polling errors
-      }
-    }, pollingInterval);
+    const intervalId = setInterval(fetchData, pollingInterval);
     
     return () => clearInterval(intervalId);
-  }, [limit, pollingInterval]);
+  }, [pollingInterval, fetchData]);
 
-  return {
-    data,
-    currentLevel,
-    isLoading,
-    error
-  };
-}
+  return { data, currentLevel, isLoading, error, refresh: fetchData };
+};

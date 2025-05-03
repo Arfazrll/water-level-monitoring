@@ -1,16 +1,17 @@
+// src/app/layout.tsx
 import '../styles/globals.css';
-import type { Metadata } from 'next';
 import { Inter } from 'next/font/google';
-import { AppProvider } from '@/context/AppContext';
-import Navbar from '@/components/layout/Navbar';
-import Sidebar from '@/components/layout/Sidebar';
-import Footer from '@/components/layout/Footer';
+import type { Metadata } from 'next';
+import { AppProvider } from '../context/AppContext';
+import Navbar from '../components/layout/Navbar';
+import Sidebar from '../components/layout/Sidebar';
+import Footer from '../components/layout/Footer';
 
 const inter = Inter({ subsets: ['latin'] });
 
 export const metadata: Metadata = {
-  title: 'Water Level Monitoring System',
-  description: 'Real-time water level monitoring and alarm system',
+  title: 'Sistem Monitoring Level Air',
+  description: 'Monitoring level air dan alarm secara real-time',
 };
 
 export default function RootLayout({
@@ -19,10 +20,10 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   return (
-    <html lang="en">
+    <html lang="id">
       <body className={inter.className}>
         <AppProvider>
-          <div className="flex h-screen bg-gray-100">
+          <div className="flex min-h-screen bg-gray-100">
             <Sidebar />
             <div className="flex-1 flex flex-col overflow-hidden">
               <Navbar />

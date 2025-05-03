@@ -162,3 +162,83 @@ body {
     text-align: left;
   }
 }
+
+/* Water Wave Animation */
+.water-wave {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  border-radius: inherit;
+}
+
+.water-wave::before,
+.water-wave::after {
+  content: "";
+  position: absolute;
+  width: 200%;
+  height: 200%;
+  top: 0;
+  left: 50%;
+  background-color: rgba(59, 130, 246, 0.3); /* Blue with transparency */
+  border-radius: 38%;
+  transform: translate(-50%, -75%);
+}
+
+.water-wave::before {
+  animation: wave 8s linear infinite;
+}
+
+.water-wave::after {
+  animation: wave 12s linear infinite;
+}
+
+@keyframes wave {
+  0% {
+    transform: translate(-50%, -75%) rotate(0deg);
+  }
+  100% {
+    transform: translate(-50%, -75%) rotate(360deg);
+  }
+}
+
+/* Pulse animation for alerts */
+@keyframes pulse-slow {
+  0%, 100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.7;
+  }
+}
+
+.animate-pulse-slow {
+  animation: pulse-slow 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+}
+
+/* Alert status animations */
+@keyframes pulse-warning {
+  0%, 100% {
+    background-color: rgba(251, 191, 36, 0.3);
+  }
+  50% {
+    background-color: rgba(251, 191, 36, 0.6);
+  }
+}
+
+@keyframes pulse-danger {
+  0%, 100% {
+    background-color: rgba(239, 68, 68, 0.3);
+  }
+  50% {
+    background-color: rgba(239, 68, 68, 0.6);
+  }
+}
+
+.animate-pulse-warning {
+  animation: pulse-warning 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+}
+
+.animate-pulse-danger {
+  animation: pulse-danger 1s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+}

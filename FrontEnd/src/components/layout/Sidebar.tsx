@@ -1,5 +1,6 @@
 "use client";
 
+// src/components/layout/Sidebar.jsx
 import React from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
@@ -125,7 +126,7 @@ const Sidebar: React.FC = () => {
                 </svg>
               </div>
               <div className="ml-3">
-                <p className="text-sm font-medium text-white">Sistem Level Air</p>
+                <p className="text-sm font-medium text-white">Sistem Monitoring</p>
                 <p className="text-xs font-medium text-gray-300">v1.0.0</p>
               </div>
             </div>
