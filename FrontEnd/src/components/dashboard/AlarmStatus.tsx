@@ -1,3 +1,5 @@
+"use client";
+
 // FrontEnd/src/components/dashboard/AlarmStatus.tsx
 
 import React, { useState, useEffect } from 'react';
@@ -14,7 +16,7 @@ const AlarmStatus: React.FC = () => {
   
   // Tentukan apakah alarm aktif
   const isAlarmActive = !!latestAlert || 
-    (currentLevel && (
+    (currentLevel && settings && (
       currentLevel.level >= settings.dangerLevel || 
       currentLevel.level >= settings.warningLevel
     ));
@@ -35,7 +37,7 @@ const AlarmStatus: React.FC = () => {
   
   // Tentukan level alarm
   const getAlarmStatus = () => {
-    if (!currentLevel) return null;
+    if (!currentLevel || !settings) return null;
     
     // Jika ada peringatan bahaya atau level saat ini di atas ambang bahaya
     if (
@@ -80,7 +82,7 @@ const AlarmStatus: React.FC = () => {
   
   const alarmStatus = getAlarmStatus();
   
-  if (!alarmStatus) {
+  if (!alarmStatus || !settings) {
     return (
       <div className="bg-white p-4 rounded-lg shadow-md">
         <h2 className="text-lg font-semibold text-gray-800 mb-4">Status Alarm</h2>

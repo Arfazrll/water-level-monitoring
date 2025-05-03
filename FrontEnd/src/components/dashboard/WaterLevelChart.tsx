@@ -1,3 +1,5 @@
+"use client";
+
 // src/components/dashboard/WaterLevelChart.tsx
 import React from 'react';
 import { 
@@ -57,11 +59,11 @@ const WaterLevelChart: React.FC<WaterLevelChartProps> = ({
     try {
       const date = new Date(timestamp);
       return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-    } catch (e) {
+    } catch (error) { // Changed '_' to 'error' and actually use it
+      console.error("Error formatting timestamp:", error);
       return 'Invalid Date';
     }
   };
-  
   // Custom tooltip
   const CustomTooltip: React.FC<CustomTooltipProps> = ({ active, payload }) => {
     if (active && payload && payload.length) {

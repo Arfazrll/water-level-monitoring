@@ -1,5 +1,6 @@
-// src/context/AppContext.tsx - Menghilangkan data dummy
+"use client";
 
+// src/context/AppContext.tsx - Menghilangkan data dummy
 import React, { createContext, useContext, useState, useEffect, ReactNode, useCallback } from 'react';
 
 // Definisi tipe data

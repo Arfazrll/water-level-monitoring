@@ -1,3 +1,5 @@
+"use client";
+
 import React from 'react';
 import { AlertData, ThresholdSettings } from '../../context/AppContext';
 
@@ -7,9 +9,10 @@ interface AlertStatusProps {
   settings: ThresholdSettings;
   onAcknowledge: (alertId: string) => Promise<void>;
   onAcknowledgeAll: () => Promise<void>;
+  isLoading?: boolean; // Menambahkan properti ini
 }
 
-const AlertStatus: React.FC<AlertStatusProps> = ({ alerts, settings, onAcknowledge, onAcknowledgeAll }) => {
+const AlertStatus: React.FC<AlertStatusProps> = ({ alerts, settings, onAcknowledge, onAcknowledgeAll, isLoading = false }) => {
   // Get the latest unacknowledged alert
   const latestAlert = alerts
     .filter(alert => !alert.acknowledged)
@@ -61,6 +64,20 @@ const AlertStatus: React.FC<AlertStatusProps> = ({ alerts, settings, onAcknowled
   const alarmStatus = getAlarmStatus();
   const isAlarmActive = !!latestAlert;
 
+  // Show loading state if isLoading is true
+  if (isLoading) {
+    return (
+      <div className="bg-white p-4 rounded-lg shadow-md">
+        <h2 className="text-lg font-semibold text-gray-800 mb-4">Status Alarm</h2>
+        <div className="animate-pulse space-y-4">
+          <div className="h-10 bg-gray-200 rounded"></div>
+          <div className="h-24 bg-gray-200 rounded"></div>
+          <div className="h-10 bg-gray-200 rounded"></div>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="bg-white p-4 rounded-lg shadow-md">
       <h2 className="text-lg font-semibold text-gray-800 mb-4">Status Alarm</h2>
@@ -83,19 +100,21 @@ const AlertStatus: React.FC<AlertStatusProps> = ({ alerts, settings, onAcknowled
         )}
       </div>
       
-      <div className="mt-4">
-        <h3 className="font-medium text-sm text-gray-700 mb-2">Pengaturan Ambang Batas Saat Ini:</h3>
-        <div className="grid grid-cols-2 gap-2 text-sm">
-          <div className="bg-yellow-50 p-2 rounded">
-            <span className="text-yellow-600 font-medium">Level Peringatan:</span>
-            <span className="ml-1 text-gray-700">{settings.warningLevel} {settings.unit}</span>
-          </div>
-          <div className="bg-red-50 p-2 rounded">
-            <span className="text-red-600 font-medium">Level Bahaya:</span>
-            <span className="ml-1 text-gray-700">{settings.dangerLevel} {settings.unit}</span>
+      {settings && (
+        <div className="mt-4">
+          <h3 className="font-medium text-sm text-gray-700 mb-2">Pengaturan Ambang Batas Saat Ini:</h3>
+          <div className="grid grid-cols-2 gap-2 text-sm">
+            <div className="bg-yellow-50 p-2 rounded">
+              <span className="text-yellow-600 font-medium">Level Peringatan:</span>
+              <span className="ml-1 text-gray-700">{settings.warningLevel} {settings.unit}</span>
+            </div>
+            <div className="bg-red-50 p-2 rounded">
+              <span className="text-red-600 font-medium">Level Bahaya:</span>
+              <span className="ml-1 text-gray-700">{settings.dangerLevel} {settings.unit}</span>
+            </div>
           </div>
         </div>
-      </div>
+      )}
       
       {/* Status Buzzer */}
       {isAlarmActive && (

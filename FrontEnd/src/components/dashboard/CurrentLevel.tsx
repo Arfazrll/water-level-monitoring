@@ -1,3 +1,5 @@
+"use client";
+
 // FrontEnd/src/components/dashboard/CurrentLevel.tsx
 
 import React from 'react';
@@ -47,7 +49,7 @@ const CurrentLevel: React.FC = () => {
   }
 
   // Penanganan kondisi data tidak tersedia dengan visualisasi informatif
-  if (!currentLevel) {
+  if (!currentLevel || !settings) {
     return (
       <div className="bg-white p-4 rounded-lg shadow-md">
         <h2 className="text-lg font-semibold text-gray-800 mb-4">Level Air Saat Ini</h2>
