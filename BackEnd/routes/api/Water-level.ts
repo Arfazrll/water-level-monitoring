@@ -14,30 +14,33 @@ const router = express.Router();
 // @route   GET /api/water-level
 // @desc    Get water level data with optional limit
 // @access  Public
-router.get('/', async (req, res) => {
+router.get('/current', async (req, res) => {
   try {
-    const limit = req.query.limit ? parseInt(req.query.limit as string) : 24;
-    
-    // Get the most recent readings ordered by timestamp
-    const waterLevelData = await WaterLevel.find()
+    const currentLevel = await WaterLevel.findOne()
       .sort({ createdAt: -1 })
-      .limit(limit)
       .lean();
     
-    // Return in chronological order (oldest first)
-    // Format konsisten untuk semua respon API: success, message, data
+    // PERBAIKAN: Jika tidak ada data, kembalikan null dengan success=true
+    if (!currentLevel) {
+      res.json({
+        success: true,
+        message: 'Belum ada data level air',
+        data: null
+      });
+      return;
+    }
+    
     res.json({
       success: true,
-      message: 'Data level air berhasil diambil',
-      data: waterLevelData.reverse()
+      message: 'Data level air terkini berhasil diambil',
+      data: currentLevel
     });
   } catch (error) {
-    console.error('Error fetching water level data:', error);
+    console.error('Error fetching current water level:', error);
     
-    // Format error respons yang konsisten
     res.status(500).json({
       success: false,
-      message: 'Gagal mengambil data level air',
+      message: 'Gagal mengambil data level air terkini',
       error: error instanceof Error ? error.message : 'Unknown error'
     });
   }

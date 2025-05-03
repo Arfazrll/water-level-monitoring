@@ -54,19 +54,22 @@ const WaterLevelChart: React.FC<WaterLevelChartProps> = ({
     );
   }
   
-  // Format time for x-axis
+  // Format time for x-axis - PERBAIKAN DISINI
   const formatTime = (timestamp: string) => {
     try {
+      if (!timestamp) return 'No Data';
       const date = new Date(timestamp);
+      if (isNaN(date.getTime())) return 'No Data';
       return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-    } catch (error) { // Changed '_' to 'error' and actually use it
-      console.error("Error formatting timestamp:", error);
-      return 'Invalid Date';
+    } catch (error) {
+      console.error("Error formatting timestamp:", error, "Timestamp:", timestamp);
+      return 'No Data';
     }
   };
+
   // Custom tooltip
-  const CustomTooltip: React.FC<CustomTooltipProps> = ({ active, payload }) => {
-    if (active && payload && payload.length) {
+  const CustomTooltip = ({ active, payload }: CustomTooltipProps) => {
+    if (active && payload && payload.length && payload[0].payload) {
       const data = payload[0].payload;
       return (
         <div className="bg-white p-3 border border-gray-200 shadow-md rounded-md">
@@ -95,7 +98,7 @@ const WaterLevelChart: React.FC<WaterLevelChartProps> = ({
         </button>
       </div>
       
-      {data.length === 0 ? (
+      {!data || data.length === 0 ? (
         <div className="h-72 flex items-center justify-center bg-gray-50 rounded-md">
           <div className="text-center p-4">
             <svg className="w-12 h-12 text-gray-400 mx-auto mb-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">

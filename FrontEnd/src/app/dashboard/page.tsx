@@ -19,6 +19,7 @@ export default function DashboardPage() {
     deviceStatus,
     isLoading, 
     error, 
+    dataAvailable,
     refreshData, 
     acknowledgeAlert, 
     acknowledgeAllAlerts, 
@@ -26,7 +27,7 @@ export default function DashboardPage() {
     togglePumpMode 
   } = useAppContext();
 
-  // Loading state untuk seluruh dashboard
+  // Loading state
   if (isLoading) {
     return (
       <div className="flex items-center justify-center min-h-screen">
@@ -55,10 +56,7 @@ export default function DashboardPage() {
   }
 
   // Check if required data is available
-  const dataAvailable = settings !== null && currentLevel !== null && pumpStatus !== null;
-  
-  // Show initialization message when no data is available
-  if (!dataAvailable) {
+  if (!dataAvailable || !settings || !currentLevel) {
     return (
       <div className="max-w-4xl mx-auto my-10 p-6 bg-yellow-50 rounded-lg border border-yellow-200">
         <h2 className="text-xl font-semibold text-yellow-700 mb-3">Menunggu Data Sensor</h2>

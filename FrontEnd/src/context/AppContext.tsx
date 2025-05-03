@@ -53,6 +53,7 @@ interface AppContextType {
   deviceStatus: DeviceStatus;
   isLoading: boolean;
   error: string | null;
+  dataAvailable: boolean;
   refreshData: () => Promise<void>;
   acknowledgeAlert: (alertId: string) => Promise<void>;
   acknowledgeAllAlerts: () => Promise<void>;
@@ -61,8 +62,8 @@ interface AppContextType {
   togglePumpMode: (mode: 'auto' | 'manual') => Promise<void>;
 }
 
-// Create context dengan nilai default null
 const AppContext = createContext<AppContextType | undefined>(undefined);
+
 
 // Provider component dengan initial state null/empty
 export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
@@ -74,6 +75,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   const [deviceStatus, setDeviceStatus] = useState<DeviceStatus>({ online: false, lastSeen: new Date().toISOString() });
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
+  const [dataAvailable, setDataAvailable] = useState<boolean>(false);
 
   // Fetch all data
   const refreshData = useCallback(async (): Promise<void> => {
@@ -81,7 +83,6 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       setIsLoading(true);
       setError(null);
       
-      // Get settings
       const settingsResponse = await fetch(`${API_BASE_URL}/settings`);
       if (!settingsResponse.ok) throw new Error('Failed to fetch settings');
       const settingsData = await settingsResponse.json();
@@ -92,10 +93,16 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       if (!waterLevelResponse.ok) throw new Error('Failed to fetch water level data');
       const waterLevelData = await waterLevelResponse.json();
       
+      let hasData = false;
+      
       if (waterLevelData.success && waterLevelData.data) {
-        setWaterLevelData(waterLevelData.data);
         if (waterLevelData.data.length > 0) {
+          setWaterLevelData(waterLevelData.data);
           setCurrentLevel(waterLevelData.data[waterLevelData.data.length - 1]);
+          hasData = true;
+        } else {
+          setWaterLevelData([]);
+          setCurrentLevel(null);
         }
       }
       
@@ -120,13 +127,17 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         lastSeen: new Date().toISOString()
       });
       
+      // Set data availability flag
+      setDataAvailable(hasData);
       setIsLoading(false);
     } catch (err) {
       console.error('Error refreshing data:', err);
       setError('Failed to load data. Please try again.');
       setIsLoading(false);
+      setDataAvailable(false);
     }
   }, []);
+
 
   // WebSocket setup dengan validasi data
   const setupWebSocket = useCallback(() => {
@@ -346,6 +357,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         deviceStatus,
         isLoading,
         error,
+        dataAvailable,
         refreshData,
         acknowledgeAlert,
         acknowledgeAllAlerts,
