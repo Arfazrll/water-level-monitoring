@@ -1,63 +1,39 @@
+// BackEnd/config/db.ts
 import mongoose from 'mongoose';
 import dotenv from 'dotenv';
 
 dotenv.config();
 const MONGO_URI = process.env.MONGO_URI || 'mongodb://127.0.0.1:27017/water-monitoring';
 
-let isConnecting = false;
-let connectionAttempts = 0;
-const MAX_RETRIES = 5;
-
+// PERBAIKAN: Koneksi DB yang lebih robust
 const connectDB = async (): Promise<void> => {
-  if (isConnecting) return;
-  isConnecting = true;
-  
   try {
-    console.log('Mencoba terhubung ke MongoDB...');
-    
     if (!MONGO_URI) {
-      throw new Error('String koneksi MongoDB tidak ditemukan di variabel lingkungan');
+      throw new Error('MongoDB connection string tidak ditemukan di variabel lingkungan');
     }
 
+    // Log connection string yang disanitasi (tanpa password)
     const sanitizedUri = MONGO_URI.replace(/\/\/([^:]+):([^@]+)@/, '//***:***@');
     console.log(`Menggunakan connection string: ${sanitizedUri}`);
 
-    // Opsi koneksi yang lebih robust
+    // Opsi koneksi yang robust
     const options: mongoose.ConnectOptions = {
       serverSelectionTimeoutMS: 10000,  // Timeout 10 detik
       socketTimeoutMS: 45000,           // Socket timeout 45 detik
-      family: 4,                        // Paksa gunakan IPv4
     };
 
     await mongoose.connect(MONGO_URI, options);
     
-    connectionAttempts = 0;
-    isConnecting = false;
-    
-    mongoose.connection.on('connected', () => {
-      console.log('MongoDB connection established');
-    });
-    
-    mongoose.connection.on('error', (err) => {
-      console.error('MongoDB connection error:', err);
-    });
-    
-    mongoose.connection.on('disconnected', () => {
-      console.log('MongoDB disconnected, attempting to reconnect...');
-      if (!isConnecting) {
-        setTimeout(() => connectDB(), 5000);
-      }
-    });
-    
     console.log('MongoDB berhasil terhubung');
     
+    // PERBAIKAN: Pengecekan collection
     const db = mongoose.connection.db;
     if (db) {
       console.log(`Terhubung ke database: ${db.databaseName}`);
       
+      // Verifikasi collections yang diperlukan
       const collections = await db.listCollections().toArray();
       const collectionNames = collections.map(c => c.name);
-      console.log('Collections yang tersedia:', collectionNames);
       
       const requiredCollections = ['waterlevels', 'alerts', 'settings', 'pumplogs', 'users'];
       for (const collection of requiredCollections) {
@@ -66,50 +42,31 @@ const connectDB = async (): Promise<void> => {
           await db.createCollection(collection);
         }
       }
-    } else {
-      console.error('Gagal mendapatkan objek db, koneksi MongoDB mungkin tidak berhasil.');
     }
+    
+    // Set up event handlers for the connection
+    mongoose.connection.on('error', (err) => {
+      console.error('MongoDB connection error:', err);
+    });
+    
+    mongoose.connection.on('disconnected', () => {
+      console.log('MongoDB disconnected');
+    });
     
   } catch (error: any) {
-    connectionAttempts++;
-    isConnecting = false;
+    console.error('Error koneksi MongoDB:', error.message);
     
-    if (error.name === 'MongoServerSelectionError' || error.code === 'ECONNREFUSED') {
-      console.error(`Error koneksi MongoDB: Server tidak dapat dijangkau (${connectionAttempts}/${MAX_RETRIES})`);
-      console.error('MongoDB mungkin tidak berjalan atau tidak dapat diakses.');
+    if (error.name === 'MongoServerSelectionError') {
+      console.error('MongoDB mungkin tidak berjalan. Pastikan MongoDB sudah terinstal dan service berjalan.');
       
       if (MONGO_URI.includes('localhost') || MONGO_URI.includes('127.0.0.1')) {
-        console.error('PETUNJUK: Pastikan MongoDB sudah diinstal dan service MongoDB sedang berjalan');
-        console.error('1. Cek service MongoDB di services.msc (Windows)');
-        console.error('2. Jika belum terinstal, download dan instal dari mongodb.com');
-        console.error('3. Pastikan port 27017 tidak diblokir oleh firewall');
+        console.error('PETUNJUK: Cek MongoDB service di komputer lokal Anda');
       } else if (MONGO_URI.includes('mongodb+srv')) {
-        console.error('PETUNJUK: Ini adalah koneksi ke MongoDB Atlas (cloud)');
-        console.error('1. Pastikan kredensial (username/password) sudah benar');
-        console.error('2. Pastikan IP address Anda sudah ditambahkan ke whitelist di MongoDB Atlas');
-        console.error('3. Periksa koneksi internet Anda');
+        console.error('PETUNJUK: Pastikan kredensial MongoDB Atlas dan IP whitelist sudah benar');
       }
-    } else if (error.name === 'MongoParseError') {
-      console.error('Error parsing MongoDB URI:', error.message);
-    } else if (error.message.includes('bad auth')) {
-      console.error('Error otentikasi MongoDB: Username atau password tidak valid');
-    } else {
-      console.error('Error koneksi MongoDB:', error.message);
     }
     
-    // Retry logic dengan exponential backoff
-    if (connectionAttempts < MAX_RETRIES) {
-      const retryDelay = Math.min(5000 * connectionAttempts, 30000); // Max 30s
-      console.log(`Mencoba kembali dalam ${retryDelay/1000} detik... (Percobaan ${connectionAttempts}/${MAX_RETRIES})`);
-      setTimeout(() => connectDB(), retryDelay);
-    } else {
-      console.error(`Gagal terhubung ke MongoDB setelah ${MAX_RETRIES} percobaan.`);
-      console.error('Aplikasi mungkin tidak akan berfungsi dengan semestinya');
-      console.error('Solusi:');
-      console.error('1. Pastikan MongoDB service berjalan (services.msc di Windows)');
-      console.error('2. Periksa alamat dan port MongoDB di file .env');
-      console.error('3. Coba gunakan MongoDB Atlas sebagai alternatif');
-    }
+    throw error;
   }
 };
 

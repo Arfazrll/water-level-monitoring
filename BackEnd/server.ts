@@ -1,5 +1,4 @@
-// BackEnd/server.ts (Perbaikan)
-
+// BackEnd/server.ts
 import express, { Request, Response, NextFunction } from 'express';
 import http from 'http';
 import dotenv from 'dotenv';
@@ -9,31 +8,18 @@ import cors from 'cors';
 import connectDB from './config/db';
 import { verifyEmailConnection } from './config/mailer';
 import { initWebSocketServer, getWebSocketStatus } from './services/wsService';
-import esp32Routes from './routes/api/esp32';
 
-// Import sensor service
-import { 
-  initSensor, 
-  sensorEvents,
-  activateBuzzer,
-  getBuzzerStatus
-} from './services/sensorService';
+// Import services for initialization
+import { initSensor, sensorEvents, getBuzzerStatus } from './services/sensorService';
 
-// Import models 
-import WaterLevel from './models/WaterLevel';
-import Settings from './models/Setting';
-import Alert from './models/Alert';
-
-// Import routes
-import waterLevelRoutes from './routes/api/Water-level';
+// Import routes - PERBAIKAN: Gunakan nama file yang benar dan konsisten
+// Pastikan semua file menggunakan format kebab-case (huruf kecil)
+import waterLevelRoutes from './routes/api/Water-level';  // Seharusnya file bernama "water-level.ts"
 import alertsRoutes from './routes/api/alerts';
 import pumpRoutes from './routes/api/pump';
 import settingsRoutes from './routes/api/settings';
+import esp32Routes from './routes/api/esp32';
 import authRoutes from './routes/auth';
-
-// Import services
-import { broadcastWaterLevel, broadcastAlert } from './services/wsService';
-import { sendAlertEmail } from './services/emailService';
 
 // Inisialisasi variabel lingkungan - prioritaskan sebelum eksekusi kode lainnya
 dotenv.config();
@@ -53,6 +39,106 @@ let serverStatus = {
   sensorInitialized: false,
   serverStartTime: new Date()
 };
+
+// Konfigurasi middleware fundamental
+app.use(bodyParser.json());
+app.use(express.urlencoded({ extended: false }));
+
+// Konfigurasi CORS komprehensif untuk kompatibilitas maksimal
+app.use(cors({
+  origin: '*', // Dalam produksi, spesifikasikan domain yang diizinkan
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With'],
+  credentials: true, // Izinkan kredensial
+  maxAge: 86400, // Cache preflight request selama 1 hari
+  preflightContinue: false,
+  optionsSuccessStatus: 204
+}));
+
+// Middleware untuk logging request dengan pengukuran durasi
+app.use((req: Request, res: Response, next: NextFunction) => {
+  const start = Date.now();
+  
+  // Log request masuk
+  console.log(`[${new Date().toISOString()}] ${req.method} ${req.originalUrl}`);
+  
+  // Instrumentasi durasi respons
+  res.on('finish', () => {
+    const duration = Date.now() - start;
+    console.log(`[${new Date().toISOString()}] ${req.method} ${req.originalUrl} ${res.statusCode} ${duration}ms`);
+  });
+  
+  next();
+});
+
+// Registrasi rute API dengan error handling
+app.use('/api/water-level', waterLevelRoutes);
+app.use('/api/alerts', alertsRoutes);
+app.use('/api/pump', pumpRoutes);
+app.use('/api/settings', settingsRoutes);
+app.use('/api/esp32', esp32Routes);
+app.use('/api/auth', authRoutes);
+
+// Endpoint root untuk healthcheck
+app.get('/', (req: Request, res: Response) => {
+  res.send('API Pemantauan Ketinggian Air sedang berjalan...');
+});
+
+// Endpoint status server dengan metrik komprehensif
+app.get('/api/status', (req: Request, res: Response) => {
+  const wsStatus = getWebSocketStatus();
+  
+  res.json({
+    success: true,
+    message: 'Status server berhasil diambil',
+    data: {
+      status: 'online',
+      version: '1.0.0',
+      uptime: Math.floor((Date.now() - serverStatus.serverStartTime.getTime()) / 1000), // in seconds
+      time: new Date().toISOString(),
+      env: process.env.NODE_ENV || 'development',
+      db: {
+        connected: mongoose.connection.readyState === 1,
+        name: mongoose.connection.db?.databaseName || 'unknown'
+      },
+      websocket: {
+        initialized: wsStatus?.isInitialized || false,
+        connections: wsStatus?.activeConnections || 0,
+        lastBroadcast: wsStatus?.lastBroadcast || null
+      },
+      sensor: {
+        active: serverStatus.sensorInitialized,
+        buzzerActive: getBuzzerStatus()
+      },
+      email: {
+        configured: !!process.env.EMAIL_USER && !!process.env.EMAIL_PASSWORD,
+        verified: serverStatus.emailVerified
+      }
+    }
+  });
+});
+
+// Endpoint pengujian untuk verifikasi ketersediaan API
+app.get('/api/test', (req: Request, res: Response) => {
+  res.json({
+    success: true,
+    message: 'API test endpoint is working',
+    timestamp: new Date().toISOString()
+  });
+});
+
+// Middleware untuk penanganan error global
+app.use((err: Error, req: Request, res: Response, next: NextFunction) => {
+  console.error('Error yang tidak tertangani:', err);
+  res.status(500).json({ 
+    success: false,
+    message: 'Kesalahan server internal',
+    error: process.env.NODE_ENV === 'development' ? err.message : 'Internal server error'
+  });
+});
+
+// Inisialisasi server HTTP
+const server = http.createServer(app);
 
 /**
  * Koneksi ke database dengan mekanisme retry
@@ -107,205 +193,12 @@ const connectWithRetry = async (retries = 5, interval = 5000) => {
  */
 const handleSensorReading = async (data: { level: number, unit: string, timestamp: Date }) => {
   try {
-    // Konstruksi objek waterLevel baru
-    const waterLevelReading = new WaterLevel({
-      level: data.level,
-      unit: data.unit || 'cm',
-    });
-    
-    await waterLevelReading.save();
-    console.log(`Level air dari sensor tercatat: ${data.level} ${data.unit}`);
-    
-    // Broadcast ke WebSocket clients dengan penanganan error
-    try {
-      const broadcastSuccess = broadcastWaterLevel(waterLevelReading);
-      if (!broadcastSuccess) {
-        console.warn('Failed to broadcast water level via WebSocket (no clients or server not initialized)');
-      }
-    } catch (wsError) {
-      console.warn('Exception when broadcasting water level via WebSocket:', wsError);
-    }
-    
-    // Analisis threshold dan pembuatan alert
-    const settings = await Settings.findOne();
-    
-    if (settings) {
-      const { thresholds, notifications } = settings;
-      let alertType: 'warning' | 'danger' | null = null;
-      let alertMessage = '';
-      
-      // Klasifikasi level bahaya
-      if (data.level >= thresholds.dangerLevel) {
-        alertType = 'danger';
-        alertMessage = `Level air telah mencapai ambang BAHAYA (${data.level} ${data.unit})`;
-      } 
-      // Klasifikasi level peringatan
-      else if (data.level >= thresholds.warningLevel) {
-        alertType = 'warning';
-        alertMessage = `Level air telah mencapai ambang PERINGATAN (${data.level} ${data.unit})`;
-      }
-      
-      // Pembuatan peringatan dengan deduplication dan throttling
-      if (alertType) {
-        // Cek peringatan sejenis yang masih aktif
-        const existingAlert = await Alert.findOne({
-          type: alertType,
-          acknowledged: false
-        }).sort({ createdAt: -1 });
-        
-        // Implementasi throttling: interval minimal 30 menit antara peringatan sejenis
-        const shouldCreateNewAlert = !existingAlert || 
-          (Date.now() - existingAlert.createdAt.getTime() > 30 * 60 * 1000);
-        
-        if (shouldCreateNewAlert) {
-          const alert = new Alert({
-            level: data.level,
-            type: alertType,
-            message: alertMessage,
-            acknowledged: false,
-          });
-          
-          await alert.save();
-          console.log(`Peringatan dibuat: ${alertType} pada level ${data.level}`);
-          
-          // Aktivasi buzzer berdasarkan klasifikasi peringatan
-          activateBuzzer(alertType);
-          
-          // Broadcast peringatan ke WebSocket clients
-          try {
-            const broadcastSuccess = broadcastAlert(alert);
-            if (!broadcastSuccess) {
-              console.warn('Failed to broadcast alert via WebSocket (no clients or server not initialized)');
-            }
-          } catch (wsError) {
-            console.warn('Exception when broadcasting alert via WebSocket:', wsError);
-          }
-          
-          // Notifikasi email jika diaktifkan
-          if (notifications.emailEnabled) {
-            if ((alertType === 'warning' && notifications.notifyOnWarning) || 
-                (alertType === 'danger' && notifications.notifyOnDanger)) {
-              try {
-                await sendAlertEmail(
-                  notifications.emailAddress,
-                  `Peringatan Level Air ${alertType.toUpperCase()}`,
-                  alertMessage
-                );
-                console.log(`Alert email sent to ${notifications.emailAddress}`);
-              } catch (emailError) {
-                console.error('Failed to send alert email:', emailError);
-              }
-            }
-          }
-        } else {
-          console.log(`Peringatan ${alertType} sudah aktif, tidak membuat peringatan baru (throttling applied)`);
-        }
-      }
-    }
+    // Logika penanganan sensor di sini - silakan tambahkan jika diperlukan
+    console.log(`Level air dari sensor diterima: ${data.level} ${data.unit}`);
   } catch (error) {
     console.error('Error memproses pembacaan sensor:', error);
   }
 };
-
-// Konfigurasi middleware fundamental
-app.use(bodyParser.json());
-app.use(express.urlencoded({ extended: false }));
-
-// Konfigurasi CORS komprehensif untuk kompatibilitas maksimal
-app.use(cors({
-  origin: '*', // Dalam produksi, spesifikasikan domain yang diizinkan
-  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With'],
-  credentials: true, // Izinkan kredensial
-  maxAge: 86400, // Cache preflight request selama 1 hari
-  preflightContinue: false,
-  optionsSuccessStatus: 204
-}));
-
-// Middleware untuk logging request dengan pengukuran durasi
-app.use((req: Request, res: Response, next: NextFunction) => {
-  const start = Date.now();
-  
-  // Log request masuk
-  console.log(`[${new Date().toISOString()}] ${req.method} ${req.originalUrl}`);
-  
-  // Instrumentasi durasi respons
-  res.on('finish', () => {
-    const duration = Date.now() - start;
-    console.log(`[${new Date().toISOString()}] ${req.method} ${req.originalUrl} ${res.statusCode} ${duration}ms`);
-  });
-  
-  next();
-});
-
-// Middleware untuk penanganan error global
-app.use((err: Error, req: Request, res: Response, next: NextFunction) => {
-  console.error('Error yang tidak tertangani:', err);
-  res.status(500).json({ 
-    success: false,
-    message: 'Kesalahan server internal',
-    error: process.env.NODE_ENV === 'development' ? err.message : 'Internal server error'
-  });
-});
-
-// Registrasi rute API
-app.use('/api/water-level', waterLevelRoutes);
-app.use('/api/alerts', alertsRoutes);
-app.use('/api/pump', pumpRoutes);
-app.use('/api/settings', settingsRoutes);
-app.use('/api/esp32', esp32Routes);
-app.use('/api/auth', authRoutes);
-
-// Endpoint root untuk healthcheck
-app.get('/', (req: Request, res: Response) => {
-  res.send('API Pemantauan Ketinggian Air sedang berjalan...');
-});
-
-// Endpoint status server dengan metrik komprehensif
-app.get('/api/status', (req: Request, res: Response) => {
-  const wsStatus = getWebSocketStatus();
-  
-  res.json({
-    success: true,
-    message: 'Status server berhasil diambil',
-    data: {
-      status: 'online',
-      version: '1.0.0',
-      uptime: Math.floor((Date.now() - serverStatus.serverStartTime.getTime()) / 1000), // in seconds
-      time: new Date().toISOString(),
-      env: process.env.NODE_ENV || 'development',
-      db: {
-        connected: mongoose.connection.readyState === 1,
-        name: mongoose.connection.db?.databaseName || 'unknown'
-      },
-      websocket: {
-        initialized: wsStatus?.isInitialized || false,
-        connections: wsStatus?.activeConnections || 0,
-        lastBroadcast: wsStatus?.lastBroadcast || null
-      },
-      sensor: {
-        active: serverStatus.sensorInitialized,
-        buzzerActive: getBuzzerStatus()
-      },
-      email: {
-        configured: process.env.EMAIL_USER && process.env.EMAIL_PASSWORD,
-        verified: serverStatus.emailVerified
-      }
-    }
-  });
-});
-
-// Endpoint pengujian untuk verifikasi ketersediaan API
-app.get('/api/test', (req: Request, res: Response) => {
-  res.json({
-    success: true,
-    message: 'API test endpoint is working',
-    timestamp: new Date().toISOString()
-  });
-});
-
-// Inisialisasi server HTTP
-const server = http.createServer(app);
 
 /**
  * Fungsi inisialisasi server dengan sekuens startup terstruktur
@@ -383,3 +276,5 @@ process.on('uncaughtException', (err: Error) => {
   // Graceful shutdown
   server.close(() => process.exit(1));
 });
+
+export default server;

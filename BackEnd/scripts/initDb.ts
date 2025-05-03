@@ -5,7 +5,6 @@ import Setting from '../models/Setting';
 import User from '../models/User';
 
 dotenv.config();
-
 const MONGO_URI = process.env.MONGO_URI || 'mongodb://127.0.0.1:27017/water-monitoring';
 
 async function initializeDatabase() {
@@ -20,8 +19,8 @@ async function initializeDatabase() {
       console.log('Creating default settings...');
       await Setting.create({
         thresholds: {
-          warningLevel: 30, // Sesuai dengan kode ESP32
-          dangerLevel: 20,  // Sesuai dengan kode ESP32
+          warningLevel: 30,
+          dangerLevel: 20,
           maxLevel: 100,
           minLevel: 0,
           pumpActivationLevel: 40,
@@ -29,11 +28,11 @@ async function initializeDatabase() {
           unit: 'cm',
         },
         notifications: {
-          emailEnabled: true,
-          emailAddress: process.env.EMAIL_USER || 'your@email.com',
+          emailEnabled: false,
+          emailAddress: process.env.EMAIL_USER || '',
           notifyOnWarning: true,
           notifyOnDanger: true,
-          notifyOnPumpActivation: true,
+          notifyOnPumpActivation: false,
         },
         pumpMode: 'auto',
       });

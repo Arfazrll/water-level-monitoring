@@ -1,17 +1,16 @@
-// BackEnd/routes/api/esp32.ts (Perbaikan)
-
-import express, { Request, Response, RequestHandler } from 'express';
+// BackEnd/routes/api/esp32.ts
+import express, { Request, Response, NextFunction } from 'express';
 import WaterLevel from '../../models/WaterLevel';
 import Settings from '../../models/Setting';
 import Alert from '../../models/Alert';
 import { sendAlertEmail } from '../../services/emailService';
 import { broadcastWaterLevel, broadcastAlert } from '../../services/wsService';
 import { activateBuzzer, deactivateBuzzer } from '../../services/sensorService';
-import PumpLog from '../../models/PumpLog';
 
 const router = express.Router();
 
-const handleEsp32Data: RequestHandler = async (req: Request, res: Response): Promise<void> => {
+// Fungsi handler untuk data ESP32
+const handleEsp32Data = async (req: Request, res: Response, next: NextFunction) => {
   try {
     // Debug logging
     console.log('ESP32 data received:', req.body);
@@ -94,9 +93,6 @@ const handleEsp32Data: RequestHandler = async (req: Request, res: Response): Pro
     const { thresholds, notifications, pumpMode } = settings;
     
     // Konversi jarak ke level air dengan beberapa perbaikan
-    // 1. Pastikan nilai distance berada dalam rentang valid
-    // 2. Gunakan nilai maxLevel dari pengaturan
-    // 3. Batasi nilai akhir agar tidak negatif atau melebihi maxLevel
     const validDistance = Math.max(0, Math.min(distance, thresholds.maxLevel));
     const waterLevel = Math.max(0, Math.min(thresholds.maxLevel - validDistance, thresholds.maxLevel));
     
@@ -213,6 +209,11 @@ const handleEsp32Data: RequestHandler = async (req: Request, res: Response): Pro
       const shouldDeactivatePump = waterLevel <= thresholds.pumpDeactivationLevel;
       
       // Tambahkan kode kendali pompa di sini jika diperlukan
+      if (shouldActivatePump) {
+        console.log('Auto pump activation recommended');
+      } else if (shouldDeactivatePump) {
+        console.log('Auto pump deactivation recommended');
+      }
     }
     
     // Success response dengan format yang konsisten
@@ -246,7 +247,7 @@ const handleEsp32Data: RequestHandler = async (req: Request, res: Response): Pro
   }
 };
 
-// Add this to the bottom of your esp32.ts file, before the export
+// Endpoint test untuk verifikasi koneksi
 router.get('/test', (req, res) => {
   res.json({ 
     success: true,
@@ -258,7 +259,7 @@ router.get('/test', (req, res) => {
   });
 });
 
-// Route definition
+// PERBAIKAN: Gunakan route dengan benar
 router.post('/data', handleEsp32Data);
 
 export default router;

@@ -1,4 +1,5 @@
-import mongoose, { Document, Schema } from 'mongoose';
+// BackEnd/models/Setting.ts (Perbaikan)
+import mongoose, { Document, Schema, Model } from 'mongoose';
 
 export interface ThresholdSettings {
   warningLevel: number;
@@ -22,7 +23,12 @@ export interface Settings extends Document {
   thresholds: ThresholdSettings;
   notifications: NotificationSettings;
   pumpMode: 'auto' | 'manual';
-  lastUpdatedBy?: string; // User ID
+  lastUpdatedBy?: string;
+}
+
+// Add static method to model interface
+interface SettingsModel extends Model<Settings> {
+  getSettings(): Promise<Settings>;
 }
 
 const SettingsSchema: Schema = new Schema(
@@ -31,12 +37,12 @@ const SettingsSchema: Schema = new Schema(
       warningLevel: {
         type: Number,
         required: true,
-        default: 70,
+        default: 30,
       },
       dangerLevel: {
         type: Number,
         required: true,
-        default: 90,
+        default: 20,
       },
       maxLevel: {
         type: Number,
@@ -51,12 +57,12 @@ const SettingsSchema: Schema = new Schema(
       pumpActivationLevel: {
         type: Number,
         required: true,
-        default: 80,
+        default: 40,
       },
       pumpDeactivationLevel: {
         type: Number,
         required: true,
-        default: 40,
+        default: 20,
       },
       unit: {
         type: String,
@@ -102,7 +108,7 @@ const SettingsSchema: Schema = new Schema(
 );
 
 // Initialize with default settings if none exist
-SettingsSchema.statics.getSettings = async function () {
+SettingsSchema.statics.getSettings = async function() {
   let settings = await this.findOne();
   if (!settings) {
     settings = await this.create({});
@@ -110,4 +116,6 @@ SettingsSchema.statics.getSettings = async function () {
   return settings;
 };
 
-export default mongoose.model<Settings>('Settings', SettingsSchema);
+const Settings = mongoose.model<Settings, SettingsModel>('Settings', SettingsSchema);
+
+export default Settings;

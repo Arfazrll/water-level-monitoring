@@ -1,5 +1,4 @@
-// BackEnd/routes/api/Water-level.ts
-
+// BackEnd/routes/api/water-level.ts
 import express from 'express';
 import { validateWaterLevelData } from '../../middleware/validate';
 import WaterLevel from '../../models/WaterLevel';
@@ -14,13 +13,40 @@ const router = express.Router();
 // @route   GET /api/water-level
 // @desc    Get water level data with optional limit
 // @access  Public
+router.get('/', async (req, res) => {
+  try {
+    const limit = req.query.limit ? parseInt(req.query.limit as string) : 24;
+    
+    const data = await WaterLevel.find()
+      .sort({ createdAt: -1 })
+      .limit(limit)
+      .lean();
+    
+    res.json({
+      success: true,
+      message: 'Data level air berhasil diambil',
+      data: data
+    });
+  } catch (error) {
+    console.error('Error fetching water level data:', error);
+    
+    res.status(500).json({
+      success: false,
+      message: 'Gagal mengambil data level air',
+      error: error instanceof Error ? error.message : 'Unknown error'
+    });
+  }
+});
+
+// @route   GET /api/water-level/current
+// @desc    Get the most recent water level reading
+// @access  Public
 router.get('/current', async (req, res) => {
   try {
     const currentLevel = await WaterLevel.findOne()
       .sort({ createdAt: -1 })
       .lean();
     
-    // PERBAIKAN: Jika tidak ada data, kembalikan null dengan success=true
     if (!currentLevel) {
       res.json({
         success: true,
@@ -63,27 +89,24 @@ router.post('/', validateWaterLevelData, async (req, res) => {
     
     // Broadcast to WebSocket clients
     try {
-      const broadcastSuccess = broadcastWaterLevel(waterLevelReading);
-      if (!broadcastSuccess) {
-        console.warn('Failed to broadcast water level via WebSocket');
-      }
+      broadcastWaterLevel(waterLevelReading);
     } catch (wsError) {
-      console.warn('Exception when broadcasting water level via WebSocket:', wsError);
+      console.warn('Error broadcasting water level:', wsError);
     }
     
     // Get current settings to check against thresholds
     const settings = await Settings.findOne();
     
     if (!settings) {
-      res.status(404).json({
-        success: false,
-        message: 'Pengaturan tidak ditemukan',
-        data: null
+      res.status(201).json({
+        success: true,
+        message: 'Data level air berhasil disimpan, pengaturan belum dibuat',
+        data: { waterLevel: waterLevelReading, alert: null }
       });
       return;
     }
     
-    const { thresholds, notifications, pumpMode } = settings;
+    const { thresholds, notifications } = settings;
     
     let alertType: 'warning' | 'danger' | null = null;
     let alertMessage = '';
@@ -103,43 +126,50 @@ router.post('/', validateWaterLevelData, async (req, res) => {
     let createdAlert = null;
     if (alertType) {
       try {
-        const alert = new Alert({
-          level,
+        // Check if there's already an active alert of the same type
+        const existingAlert = await Alert.findOne({
           type: alertType,
-          message: alertMessage,
-          acknowledged: false,
-        });
+          acknowledged: false
+        }).sort({ createdAt: -1 });
         
-        await alert.save();
-        createdAlert = alert;
-        console.log(`Alert created: ${alertType} at level ${level}`);
+        // Only create new alert if there isn't one or it's older than 30 min
+        const shouldCreateNewAlert = !existingAlert || 
+          (Date.now() - existingAlert.createdAt.getTime() > 30 * 60 * 1000);
         
-        // Activate buzzer based on alert type
-        activateBuzzer(alertType);
-        
-        // Broadcast alert to WebSocket clients
-        try {
-          const broadcastSuccess = broadcastAlert(alert);
-          if (!broadcastSuccess) {
-            console.warn('Failed to broadcast alert via WebSocket');
+        if (shouldCreateNewAlert) {
+          const alert = new Alert({
+            level,
+            type: alertType,
+            message: alertMessage,
+            acknowledged: false,
+          });
+          
+          await alert.save();
+          createdAlert = alert;
+          
+          // Activate buzzer based on alert type
+          activateBuzzer(alertType);
+          
+          // Broadcast alert to WebSocket clients
+          try {
+            broadcastAlert(alert);
+          } catch (wsError) {
+            console.warn('Error broadcasting alert:', wsError);
           }
-        } catch (wsError) {
-          console.warn('Exception when broadcasting alert via WebSocket:', wsError);
-        }
-        
-        // Send email notification if enabled
-        if (notifications.emailEnabled) {
-          if ((alertType === 'warning' && notifications.notifyOnWarning) || 
-              (alertType === 'danger' && notifications.notifyOnDanger)) {
-            try {
-              await sendAlertEmail(
-                notifications.emailAddress,
-                `Peringatan Level Air ${alertType.toUpperCase()}`,
-                alertMessage
-              );
-              console.log(`Alert email sent to ${notifications.emailAddress}`);
-            } catch (emailError) {
-              console.error('Failed to send alert email:', emailError);
+          
+          // Send email notification if enabled
+          if (notifications.emailEnabled) {
+            if ((alertType === 'warning' && notifications.notifyOnWarning) || 
+                (alertType === 'danger' && notifications.notifyOnDanger)) {
+              try {
+                await sendAlertEmail(
+                  notifications.emailAddress,
+                  `Peringatan Level Air ${alertType.toUpperCase()}`,
+                  alertMessage
+                );
+              } catch (emailError) {
+                console.error('Failed to send alert email:', emailError);
+              }
             }
           }
         }
@@ -148,20 +178,6 @@ router.post('/', validateWaterLevelData, async (req, res) => {
       }
     }
     
-    // Handle automatic pump control if in auto mode
-    if (pumpMode === 'auto') {
-      // Logic for pump control will be handled by a separate service/route
-      const shouldActivatePump = level >= thresholds.pumpActivationLevel;
-      const shouldDeactivatePump = level <= thresholds.pumpDeactivationLevel;
-      
-      if (shouldActivatePump) {
-        console.log('Auto pump activation recommended');
-      } else if (shouldDeactivatePump) {
-        console.log('Auto pump deactivation recommended');
-      }
-    }
-    
-    // Format respons konsisten untuk sukses
     res.status(201).json({
       success: true,
       message: 'Data level air berhasil disimpan',
@@ -177,46 +193,9 @@ router.post('/', validateWaterLevelData, async (req, res) => {
   } catch (error) {
     console.error('Error recording water level:', error);
     
-    // Format respons konsisten untuk error
     res.status(500).json({
       success: false,
       message: 'Gagal menyimpan data level air',
-      error: error instanceof Error ? error.message : 'Unknown error'
-    });
-  }
-});
-
-// @route   GET /api/water-level/current
-// @desc    Get the most recent water level reading
-// @access  Public
-router.get('/current', async (req, res) => {
-  try {
-    const currentLevel = await WaterLevel.findOne()
-      .sort({ createdAt: -1 })
-      .lean();
-    
-    if (!currentLevel) {
-      res.status(404).json({
-        success: false,
-        message: 'Tidak ada data level air yang ditemukan',
-        data: null
-      });
-      return;
-    }
-    
-    // Format respons konsisten
-    res.json({
-      success: true,
-      message: 'Data level air terkini berhasil diambil',
-      data: currentLevel
-    });
-  } catch (error) {
-    console.error('Error fetching current water level:', error);
-    
-    // Format respons konsisten untuk error
-    res.status(500).json({
-      success: false,
-      message: 'Gagal mengambil data level air terkini',
       error: error instanceof Error ? error.message : 'Unknown error'
     });
   }
