@@ -1,15 +1,57 @@
+// src/components/dashboard/PumpControl.tsx
 import React from 'react';
 import { PumpStatus, ThresholdSettings } from '../../context/AppContext';
 
 // Definisi tipe props untuk PumpControl
 interface PumpControlProps {
-  pumpStatus: PumpStatus;
-  settings: ThresholdSettings;
+  pumpStatus: PumpStatus | null;
+  settings: ThresholdSettings | null;
   onTogglePump: (active: boolean) => Promise<void>;
   onToggleMode: (mode: 'auto' | 'manual') => Promise<void>;
+  isLoading?: boolean;
 }
 
-const PumpControl: React.FC<PumpControlProps> = ({ pumpStatus, settings, onTogglePump, onToggleMode }) => {
+const PumpControl: React.FC<PumpControlProps> = ({ 
+  pumpStatus, 
+  settings, 
+  onTogglePump, 
+  onToggleMode,
+  isLoading = false
+}) => {
+  // Loading state
+  if (isLoading || !settings) {
+    return (
+      <div className="bg-white p-4 rounded-lg shadow-md">
+        <h2 className="text-lg font-semibold text-gray-800 mb-4">Kontrol Pompa</h2>
+        <div className="animate-pulse space-y-4">
+          <div className="h-10 bg-gray-200 rounded"></div>
+          <div className="h-24 bg-gray-200 rounded"></div>
+          <div className="h-10 bg-gray-200 rounded"></div>
+        </div>
+      </div>
+    );
+  }
+
+  // No data state
+  if (!pumpStatus) {
+    return (
+      <div className="bg-white p-4 rounded-lg shadow-md">
+        <h2 className="text-lg font-semibold text-gray-800 mb-4">Kontrol Pompa</h2>
+        <div className="p-4 bg-gray-50 border border-gray-200 rounded-md">
+          <div className="text-center py-4">
+            <svg className="w-10 h-10 text-gray-400 mx-auto mb-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9.172 16.172a4 4 0 015.656 0M9 10h.01M15 10h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+            </svg>
+            <p className="text-gray-600">Tidak ada data pompa</p>
+            <p className="text-sm text-gray-500 mt-2">
+              Menunggu koneksi ke sistem pompa
+            </p>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   // Handle pump toggle
   const handleTogglePump = () => {
     onTogglePump(!pumpStatus.isActive);

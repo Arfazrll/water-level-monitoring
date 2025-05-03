@@ -1,19 +1,63 @@
+// src/components/dashboard/StatusCards.tsx
 import React from 'react';
 import { WaterLevelData, ThresholdSettings, PumpStatus } from '../../context/AppContext';
 
 // Definisi tipe props untuk StatusCards
 interface StatusCardsProps {
   currentLevel: WaterLevelData | null;
-  settings: ThresholdSettings;
-  pumpStatus: PumpStatus;
+  settings: ThresholdSettings | null;
+  pumpStatus: PumpStatus | null;
   activeAlerts: number;
+  isLoading?: boolean;
 }
 
-const StatusCards: React.FC<StatusCardsProps> = ({ currentLevel, settings, pumpStatus, activeAlerts }) => {
+const StatusCards: React.FC<StatusCardsProps> = ({ 
+  currentLevel, 
+  settings, 
+  pumpStatus, 
+  activeAlerts,
+  isLoading = false
+}) => {
+  // Loading state
+  if (isLoading || !settings) {
+    return (
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        {[1, 2, 3].map((i) => (
+          <div key={i} className="bg-white rounded-lg shadow-md p-4">
+            <div className="animate-pulse space-y-4">
+              <div className="h-4 bg-gray-200 rounded w-1/4"></div>
+              <div className="h-8 bg-gray-200 rounded w-1/2"></div>
+              <div className="h-4 bg-gray-200 rounded w-full"></div>
+              <div className="h-4 bg-gray-200 rounded w-full"></div>
+            </div>
+          </div>
+        ))}
+      </div>
+    );
+  }
+  
+  // No data state
+  if (!currentLevel || !pumpStatus) {
+    return (
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <div className="bg-white rounded-lg shadow-md p-4">
+          <h3 className="text-sm font-medium text-gray-500">Level Air Saat Ini</h3>
+          <div className="mt-2 text-gray-400">Data tidak tersedia</div>
+        </div>
+        <div className="bg-white rounded-lg shadow-md p-4">
+          <h3 className="text-sm font-medium text-gray-500">Status Pompa</h3>
+          <div className="mt-2 text-gray-400">Data tidak tersedia</div>
+        </div>
+        <div className="bg-white rounded-lg shadow-md p-4">
+          <h3 className="text-sm font-medium text-gray-500">Status Peringatan</h3>
+          <div className="mt-2 text-gray-400">Data tidak tersedia</div>
+        </div>
+      </div>
+    );
+  }
+
   // Helper untuk menentukan status level air dan warna
   const getLevelStatus = () => {
-    if (!currentLevel) return { text: 'Tidak Ada Data', color: 'text-gray-500' };
-    
     if (currentLevel.level >= settings.dangerLevel) {
       return { text: 'BAHAYA', color: 'text-red-600' };
     }
@@ -28,9 +72,7 @@ const StatusCards: React.FC<StatusCardsProps> = ({ currentLevel, settings, pumpS
   const levelStatus = getLevelStatus();
   
   // Hitung persentase terisi
-  const percentageFilled = currentLevel 
-    ? Math.min(Math.max((currentLevel.level / settings.maxLevel) * 100, 0), 100) 
-    : 0;
+  const percentageFilled = Math.min(Math.max((currentLevel.level / settings.maxLevel) * 100, 0), 100);
   
   // Format status pompa
   const getPumpStatusInfo = () => {
@@ -68,7 +110,7 @@ const StatusCards: React.FC<StatusCardsProps> = ({ currentLevel, settings, pumpS
             <h3 className="text-sm font-medium text-gray-500">Level Air Saat Ini</h3>
             <div className="mt-1 flex items-baseline">
               <p className="text-2xl font-semibold text-gray-900">
-                {currentLevel ? currentLevel.level.toFixed(1) : '--'} {currentLevel?.unit || 'cm'}
+                {currentLevel.level.toFixed(1)} {currentLevel.unit}
               </p>
               <p className={`ml-2 text-sm font-medium ${levelStatus.color}`}>
                 {levelStatus.text}
@@ -87,9 +129,9 @@ const StatusCards: React.FC<StatusCardsProps> = ({ currentLevel, settings, pumpS
           <div className="w-full h-full bg-gray-200 absolute"></div>
           <div 
             className={`h-full ${
-              currentLevel && currentLevel.level >= settings.dangerLevel 
+              currentLevel.level >= settings.dangerLevel 
                 ? 'bg-red-500' 
-                : currentLevel && currentLevel.level >= settings.warningLevel 
+                : currentLevel.level >= settings.warningLevel 
                   ? 'bg-yellow-500' 
                   : 'bg-blue-500'
             } absolute`} 

@@ -1,5 +1,4 @@
-"use client";
-
+// src/context/AppContext.tsx - Menghilangkan data dummy
 
 import React, { createContext, useContext, useState, useEffect, ReactNode, useCallback } from 'react';
 
@@ -48,8 +47,8 @@ interface AppContextType {
   waterLevelData: WaterLevelData[];
   currentLevel: WaterLevelData | null;
   alerts: AlertData[];
-  settings: ThresholdSettings;
-  pumpStatus: PumpStatus;
+  settings: ThresholdSettings | null;
+  pumpStatus: PumpStatus | null;
   deviceStatus: DeviceStatus;
   isLoading: boolean;
   error: string | null;
@@ -61,33 +60,16 @@ interface AppContextType {
   togglePumpMode: (mode: 'auto' | 'manual') => Promise<void>;
 }
 
-// Default values
-const defaultSettings: ThresholdSettings = {
-  warningLevel: 30,
-  dangerLevel: 20,
-  maxLevel: 100,
-  minLevel: 0,
-  pumpActivationLevel: 40,
-  pumpDeactivationLevel: 20,
-  unit: 'cm'
-};
-
-const defaultPumpStatus: PumpStatus = {
-  isActive: false,
-  mode: 'auto',
-  lastActivated: null
-};
-
-// Create context
+// Create context dengan nilai default null
 const AppContext = createContext<AppContextType | undefined>(undefined);
 
-// Provider component
+// Provider component dengan initial state null/empty
 export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
   const [waterLevelData, setWaterLevelData] = useState<WaterLevelData[]>([]);
   const [currentLevel, setCurrentLevel] = useState<WaterLevelData | null>(null);
   const [alerts, setAlerts] = useState<AlertData[]>([]);
-  const [settings, setSettings] = useState<ThresholdSettings>(defaultSettings);
-  const [pumpStatus, setPumpStatus] = useState<PumpStatus>(defaultPumpStatus);
+  const [settings, setSettings] = useState<ThresholdSettings | null>(null);
+  const [pumpStatus, setPumpStatus] = useState<PumpStatus | null>(null);
   const [deviceStatus, setDeviceStatus] = useState<DeviceStatus>({ online: false, lastSeen: new Date().toISOString() });
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
@@ -145,12 +127,11 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     }
   }, []);
 
-  // WebSocket setup
+  // WebSocket setup dengan validasi data
   const setupWebSocket = useCallback(() => {
     const wsProtocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
     let wsHost = process.env.NEXT_PUBLIC_WS_URL || window.location.host;
     
-    // If using different host for backend
     if (wsHost === window.location.hostname && process.env.NEXT_PUBLIC_API_URL) {
       try {
         const apiUrl = new URL(process.env.NEXT_PUBLIC_API_URL);
@@ -174,7 +155,6 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       console.log('WebSocket disconnected');
       setDeviceStatus(prev => ({ ...prev, online: false }));
       
-      // Attempt to reconnect after 5 seconds
       setTimeout(() => setupWebSocket(), 5000);
     };
     
@@ -182,43 +162,48 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       try {
         const message = JSON.parse(event.data);
         
-        if (message.type === 'waterLevel') {
-          // Update waterLevelData array
-          setWaterLevelData(prev => {
-            const newData = [...prev, message.data];
-            // Keep last 100 readings
-            return newData.slice(-100);
-          });
-          
-          // Update currentLevel
-          setCurrentLevel(message.data);
-          
-          // Update device status
-          setDeviceStatus({
-            online: true,
-            lastSeen: new Date().toISOString()
-          });
-        } else if (message.type === 'alert') {
-          // Update alerts
-          setAlerts(prev => {
-            const existingAlertIndex = prev.findIndex(a => a.id === message.data.id);
+        if (message.type === 'waterLevel' && message.data) {
+          // Validasi data sebelum update
+          if (typeof message.data.level === 'number' && message.data.timestamp) {
+            setWaterLevelData(prev => {
+              const newData = [...prev, message.data];
+              return newData.slice(-100);
+            });
             
-            if (existingAlertIndex >= 0) {
-              // Update existing alert
-              const updatedAlerts = [...prev];
-              updatedAlerts[existingAlertIndex] = message.data;
-              return updatedAlerts;
-            } else {
-              // Add new alert
-              return [message.data, ...prev];
-            }
-          });
-        } else if (message.type === 'settings') {
-          // Update settings
-          setSettings(message.data);
-        } else if (message.type === 'pumpStatus') {
-          // Update pump status
-          setPumpStatus(message.data);
+            setCurrentLevel(message.data);
+            
+            setDeviceStatus({
+              online: true,
+              lastSeen: new Date().toISOString()
+            });
+          }
+        } else if (message.type === 'alert' && message.data) {
+          // Validasi data alert
+          if (message.data.id && message.data.type && message.data.timestamp) {
+            setAlerts(prev => {
+              const existingAlertIndex = prev.findIndex(a => a.id === message.data.id);
+              
+              if (existingAlertIndex >= 0) {
+                const updatedAlerts = [...prev];
+                updatedAlerts[existingAlertIndex] = message.data;
+                return updatedAlerts;
+              } else {
+                return [message.data, ...prev];
+              }
+            });
+          }
+        } else if (message.type === 'settings' && message.data) {
+          // Validasi settings
+          if (typeof message.data.warningLevel === 'number' && 
+              typeof message.data.dangerLevel === 'number') {
+            setSettings(message.data);
+          }
+        } else if (message.type === 'pumpStatus' && message.data) {
+          // Validasi pump status
+          if (typeof message.data.isActive === 'boolean' && 
+              (message.data.mode === 'auto' || message.data.mode === 'manual')) {
+            setPumpStatus(message.data);
+          }
         }
       } catch (err) {
         console.error('Error processing WebSocket message:', err);
@@ -342,7 +327,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       if (!response.ok) throw new Error('Failed to change pump mode');
       
       const result = await response.json();
-      setPumpStatus(prev => ({ ...prev, mode: result.mode }));
+      setPumpStatus(prev => prev ? { ...prev, mode: result.mode } : null);
     } catch (err) {
       console.error('Error changing pump mode:', err);
       throw err;

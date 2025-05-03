@@ -26,6 +26,7 @@ export default function DashboardPage() {
     togglePumpMode 
   } = useAppContext();
 
+  // Loading state untuk seluruh dashboard
   if (isLoading) {
     return (
       <div className="flex items-center justify-center min-h-screen">
@@ -37,6 +38,7 @@ export default function DashboardPage() {
     );
   }
 
+  // Error state
   if (error) {
     return (
       <div className="max-w-4xl mx-auto my-10 p-6 bg-red-50 rounded-lg border border-red-200">
@@ -52,12 +54,41 @@ export default function DashboardPage() {
     );
   }
 
+  // Check if required data is available
+  const dataAvailable = settings !== null && currentLevel !== null && pumpStatus !== null;
+  
+  // Show initialization message when no data is available
+  if (!dataAvailable) {
+    return (
+      <div className="max-w-4xl mx-auto my-10 p-6 bg-yellow-50 rounded-lg border border-yellow-200">
+        <h2 className="text-xl font-semibold text-yellow-700 mb-3">Menunggu Data Sensor</h2>
+        <p className="text-yellow-600">
+          Sistem sedang menunggu data dari sensor. Pastikan perangkat IoT terhubung dan mengirimkan data.
+        </p>
+        <div className="mt-4 flex space-x-4">
+          <button 
+            className="px-4 py-2 bg-blue-500 text-white rounded-md hover:bg-blue-600"
+            onClick={() => refreshData()}
+          >
+            Refresh Data
+          </button>
+          <button 
+            className="px-4 py-2 bg-gray-200 text-gray-700 rounded-md hover:bg-gray-300"
+            onClick={() => window.location.href = '/settings'}
+          >
+            Konfigurasi Sistem
+          </button>
+        </div>
+      </div>
+    );
+  }
+
   // Count unacknowledged alerts
   const activeAlerts = alerts.filter(a => !a.acknowledged).length;
 
   return (
     <div className="max-w-7xl mx-auto p-4 sm:p-6">
-      {/* Header with status summary */}
+      {/* Header */}
       <div className="mb-6">
         <h1 className="text-2xl font-bold text-gray-800">Dashboard Monitoring Level Air</h1>
         <p className="text-gray-600">Pemantauan dan kendali level air secara real-time</p>
@@ -69,6 +100,7 @@ export default function DashboardPage() {
         settings={settings}
         pumpStatus={pumpStatus}
         activeAlerts={activeAlerts}
+        isLoading={isLoading}
       />
       
       {/* Main content grid */}
@@ -80,6 +112,7 @@ export default function DashboardPage() {
             data={waterLevelData}
             settings={settings}
             onRefresh={refreshData}
+            isLoading={isLoading}
           />
           
           {/* Alert status component */}
@@ -88,6 +121,7 @@ export default function DashboardPage() {
             settings={settings}
             onAcknowledge={acknowledgeAlert}
             onAcknowledgeAll={acknowledgeAllAlerts}
+            isLoading={isLoading}
           />
         </div>
         
@@ -96,7 +130,8 @@ export default function DashboardPage() {
           {/* Current water level visualization */}
           <TankVisualizer 
             currentLevel={currentLevel} 
-            settings={settings} 
+            settings={settings}
+            isLoading={isLoading}
           />
           
           {/* Pump control component */}
@@ -105,6 +140,7 @@ export default function DashboardPage() {
             settings={settings}
             onTogglePump={togglePump}
             onToggleMode={togglePumpMode}
+            isLoading={isLoading}
           />
           
           {/* Quick actions card */}

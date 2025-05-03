@@ -1,3 +1,4 @@
+// src/components/dashboard/WaterLevelChart.tsx
 import React from 'react';
 import { 
   LineChart, 
@@ -15,8 +16,9 @@ import { WaterLevelData, ThresholdSettings } from '../../context/AppContext';
 // Definisi tipe props untuk WaterLevelChart
 interface WaterLevelChartProps {
   data: WaterLevelData[];
-  settings: ThresholdSettings;
+  settings: ThresholdSettings | null;
   onRefresh: () => Promise<void>;
+  isLoading?: boolean;
 }
 
 // Definisi tipe untuk CustomTooltip
@@ -27,11 +29,37 @@ interface CustomTooltipProps {
   }>;
 }
 
-const WaterLevelChart: React.FC<WaterLevelChartProps> = ({ data, settings, onRefresh }) => {
+const WaterLevelChart: React.FC<WaterLevelChartProps> = ({ 
+  data, 
+  settings, 
+  onRefresh,
+  isLoading = false
+}) => {
+  // Loading state
+  if (isLoading || !settings) {
+    return (
+      <div className="bg-white p-4 rounded-lg shadow-md">
+        <div className="flex justify-between items-center mb-4">
+          <h2 className="text-lg font-semibold text-gray-800">Riwayat Level Air</h2>
+        </div>
+        <div className="h-72 bg-gray-50 rounded-md flex items-center justify-center">
+          <div className="text-center">
+            <div className="animate-spin rounded-full h-10 w-10 border-t-2 border-b-2 border-blue-500 mx-auto mb-4"></div>
+            <p className="text-gray-500">Memuat data...</p>
+          </div>
+        </div>
+      </div>
+    );
+  }
+  
   // Format time for x-axis
   const formatTime = (timestamp: string) => {
-    const date = new Date(timestamp);
-    return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+    try {
+      const date = new Date(timestamp);
+      return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+    } catch (e) {
+      return 'Invalid Date';
+    }
   };
   
   // Custom tooltip
@@ -67,7 +95,15 @@ const WaterLevelChart: React.FC<WaterLevelChartProps> = ({ data, settings, onRef
       
       {data.length === 0 ? (
         <div className="h-72 flex items-center justify-center bg-gray-50 rounded-md">
-          <p className="text-gray-500">Tidak ada data tersedia</p>
+          <div className="text-center p-4">
+            <svg className="w-12 h-12 text-gray-400 mx-auto mb-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+            </svg>
+            <p className="text-gray-600">Belum ada data riwayat</p>
+            <p className="text-sm text-gray-500 mt-2">
+              Data riwayat akan muncul setelah beberapa pembacaan sensor
+            </p>
+          </div>
         </div>
       ) : (
         <>

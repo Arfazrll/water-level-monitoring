@@ -16,8 +16,8 @@ let sensorPort: SerialPort | null = null;
 let parser: ReadlineParser | null = null;
 
 // Setting port untuk Arduino atau sensor
-const ARDUINO_PORT = process.env.ARDUINO_PORT || 'COM3'; // Windows default
-const ARDUINO_BAUD_RATE = parseInt(process.env.ARDUINO_BAUD_RATE || '9600');
+const ARDUINO_PORT = process.env.ARDUINO_PORT || 'COM5'; // Windows default
+const ARDUINO_BAUD_RATE = parseInt(process.env.ARDUINO_BAUD_RATE || '115200');
 
 /**
  * Inisialisasi sensor dan buzzer
