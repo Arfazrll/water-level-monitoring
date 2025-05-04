@@ -1,3 +1,4 @@
+// BackEnd/routes/api/settings.ts
 import express, { Request, Response } from 'express';
 import Settings from '../../models/Setting';
 import { validateThresholdSettings } from '../../middleware/validate';

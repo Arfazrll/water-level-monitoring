@@ -3,6 +3,10 @@ import { WaterLevelData, AlertData, ThresholdSettings } from './types';
 // Gunakan environment variable dengan fallback yang konsisten
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000/api';
 
+if (process.env.NODE_ENV === 'development') {
+  console.log('API Base URL:', API_BASE_URL);
+}
+
 /**
  * Implementasi fetch dengan mekanisme retry dan exponential backoff
  * @param url - URL endpoint API

@@ -22,10 +22,11 @@ router.get('/', async (req, res) => {
       .limit(limit)
       .lean();
     
+    // Return empty array if no data, not 404
     res.json({
       success: true,
       message: 'Data level air berhasil diambil',
-      data: data
+      data: data || []
     });
   } catch (error) {
     console.error('Error fetching water level data:', error);

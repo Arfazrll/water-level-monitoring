@@ -44,25 +44,25 @@ let serverStatus = {
 app.use(bodyParser.json());
 app.use(express.urlencoded({ extended: false }));
 
-// Konfigurasi CORS komprehensif untuk kompatibilitas maksimal
-app.use(cors({
-  origin: '*', // Dalam produksi, spesifikasikan domain yang diizinkan
+// Definisi opsi CORS
+const corsOptions = {
+  origin: process.env.FRONTEND_URL || 'http://localhost:3000',
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With'],
   credentials: true, // Izinkan kredensial
   maxAge: 86400, // Cache preflight request selama 1 hari
   preflightContinue: false,
   optionsSuccessStatus: 204
-}));
+};
+
+// Konfigurasi CORS komprehensif untuk kompatibilitas maksimal
+app.use(cors(corsOptions));
 
 // Middleware untuk logging request dengan pengukuran durasi
 app.use((req: Request, res: Response, next: NextFunction) => {
   const start = Date.now();
-  
-  // Log request masuk
   console.log(`[${new Date().toISOString()}] ${req.method} ${req.originalUrl}`);
   
-  // Instrumentasi durasi respons
   res.on('finish', () => {
     const duration = Date.now() - start;
     console.log(`[${new Date().toISOString()}] ${req.method} ${req.originalUrl} ${res.statusCode} ${duration}ms`);
@@ -94,7 +94,7 @@ app.get('/api/status', (req: Request, res: Response) => {
     data: {
       status: 'online',
       version: '1.0.0',
-      uptime: Math.floor((Date.now() - serverStatus.serverStartTime.getTime()) / 1000), // in seconds
+      uptime: Math.floor((Date.now() - serverStatus.serverStartTime.getTime()) / 1000),
       time: new Date().toISOString(),
       env: process.env.NODE_ENV || 'development',
       db: {
@@ -127,17 +127,24 @@ app.get('/api/test', (req: Request, res: Response) => {
   });
 });
 
+// Handler untuk rute yang tidak ditemukan
+app.use((req: Request, res: Response) => {
+  res.status(404).json({
+    success: false,
+    message: `Route ${req.originalUrl} not found`
+  });
+});
+
 // Middleware untuk penanganan error global
 app.use((err: Error, req: Request, res: Response, next: NextFunction) => {
-  console.error('Error yang tidak tertangani:', err);
+  console.error('Unhandled error:', err);
   res.status(500).json({ 
     success: false,
-    message: 'Kesalahan server internal',
+    message: 'Internal server error',
     error: process.env.NODE_ENV === 'development' ? err.message : 'Internal server error'
   });
 });
 
-// Inisialisasi server HTTP
 const server = http.createServer(app);
 
 /**
