@@ -1,5 +1,3 @@
-// src/components/dashboard/TankVisualizer.tsx - Dengan state loading
-
 import React from 'react';
 import { WaterLevelData, ThresholdSettings } from '../../context/AppContext';
 

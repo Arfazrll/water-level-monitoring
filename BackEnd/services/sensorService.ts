@@ -1,5 +1,3 @@
-// BackEnd/services/sensorService.ts (Perbaikan)
-
 import { EventEmitter } from 'events';
 import { SerialPort } from 'serialport'; // Correct import for version 10+
 import { ReadlineParser } from '@serialport/parser-readline';
@@ -19,10 +17,7 @@ let parser: ReadlineParser | null = null;
 const ARDUINO_PORT = process.env.ARDUINO_PORT || 'COM5'; // Windows default
 const ARDUINO_BAUD_RATE = parseInt(process.env.ARDUINO_BAUD_RATE || '115200');
 
-/**
- * Inisialisasi sensor dan buzzer
- * Mencoba terhubung ke sensor ultrasonik atau float melalui Arduino
- */
+// Inisialisasi sensor dan buzzer
 export const initSensor = () => {
   try {
     // Coba terhubung ke sensor fisik via Serial
@@ -47,8 +42,6 @@ export const initSensor = () => {
       parser.on('data', (data: string) => {
         console.log('Raw sensor data:', data);
         try {
-          // Format data dari Arduino diharapkan: "water_level:XX.XX"
-          // Tetapi kita juga mendukung format lain seperti JSON
           if (data.startsWith('{') && data.endsWith('}')) {
             // Format JSON
             try {
@@ -130,7 +123,6 @@ export const activateBuzzer = (type: 'warning' | 'danger', autoDeactivate = fals
   
   buzzerActive = true;
 
-  // Jika menggunakan Arduino, kirim perintah ke buzzer
   if (sensorPort && sensorPort.isOpen) {
     try {
       // Format: "buzzer:on:type" where type is 1 for warning, 2 for danger
@@ -168,7 +160,6 @@ export const deactivateBuzzer = () => {
   if (buzzerActive) {
     buzzerActive = false;
     
-    // Jika menggunakan Arduino, kirim perintah untuk mematikan buzzer
     if (sensorPort && sensorPort.isOpen) {
       try {
         sensorPort.write("buzzer:off\n");

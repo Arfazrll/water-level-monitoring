@@ -1,4 +1,3 @@
-// FrontEnd/src/lib/websocket.ts
 import { Dispatch, SetStateAction } from 'react';
 import { WebSocketMessage } from './types';
 

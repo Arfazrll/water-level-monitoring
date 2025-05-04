@@ -1,7 +1,5 @@
 "use client";
 
-// FrontEnd/src/components/dashboard/AlarmStatus.tsx
-
 import React, { useState, useEffect } from 'react';
 import { useAppContext } from '@/context/AppContext';
 

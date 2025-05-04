@@ -1,4 +1,3 @@
-// BackEnd/config/mailer.ts (Perbaikan)
 import nodemailer from 'nodemailer';
 import dotenv from 'dotenv';
 
@@ -25,8 +24,6 @@ const createTransporter = () => {
     console.warn('Pastikan EMAIL_USER dan EMAIL_PASSWORD diatur di file .env');
     return null;
   }
-
-  // PERBAIKAN: Nonaktifkan debug dan logging di production
   const enableDebug = process.env.NODE_ENV === 'development' && process.env.EMAIL_DEBUG === 'true';
   
   // Coba buat transporter dengan kredensial yang telah dikonfigurasi
@@ -39,7 +36,6 @@ const createTransporter = () => {
         user: process.env.EMAIL_USER,
         pass: process.env.EMAIL_PASSWORD
       },
-      // PERBAIKAN: Nonaktifkan debug dan logger di production untuk menghindari eksposur kredensial
       debug: enableDebug,
       logger: enableDebug
     });
@@ -79,7 +75,6 @@ export const verifyEmailConnection = async (): Promise<boolean> => {
         text: 'Sistem monitoring level air berhasil dikonfigurasi.',
         html: '<p>Sistem monitoring level air berhasil dikonfigurasi.</p>'
       });
-      // PERBAIKAN: Kurangi log yang mengandung informasi sensitif
       console.log('Email tes berhasil dikirim:', info.messageId);
     } catch (testError) {
       console.error('Gagal mengirim email tes:', testError);

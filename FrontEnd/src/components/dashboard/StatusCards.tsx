@@ -1,4 +1,3 @@
-// src/components/dashboard/StatusCards.tsx
 import React from 'react';
 import { WaterLevelData, ThresholdSettings, PumpStatus } from '../../context/AppContext';
 

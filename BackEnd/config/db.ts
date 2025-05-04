@@ -5,7 +5,6 @@ import dotenv from 'dotenv';
 dotenv.config();
 const MONGO_URI = process.env.MONGO_URI || 'mongodb://127.0.0.1:27017/water-monitoring';
 
-// PERBAIKAN: Koneksi DB yang lebih robust
 const connectDB = async (): Promise<void> => {
   try {
     if (!MONGO_URI) {
@@ -26,7 +25,6 @@ const connectDB = async (): Promise<void> => {
     
     console.log('MongoDB berhasil terhubung');
     
-    // PERBAIKAN: Pengecekan collection
     const db = mongoose.connection.db;
     if (db) {
       console.log(`Terhubung ke database: ${db.databaseName}`);

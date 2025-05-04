@@ -21,7 +21,7 @@ export const validateThresholdSettings = (req: Request, res: Response, next: Nex
         message: `Field berikut diperlukan: ${missingFields.join(', ')}`,
         error: 'VALIDATION_ERROR'
       });
-      return; // Just return without the 'return res.status' pattern
+      return;
     }
     
     // Validasi tipe data - pastikan values berupa angka
@@ -109,7 +109,6 @@ export const validateThresholdSettings = (req: Request, res: Response, next: Nex
       message: 'Terjadi kesalahan saat validasi pengaturan',
       error: error instanceof Error ? error.message : 'Unknown validation error'
     });
-    // No return statement needed here
   }
 };
 
@@ -158,7 +157,7 @@ export const validateWaterLevelData = (req: Request, res: Response, next: NextFu
     
     // Set unit default jika tidak disediakan
     if (!unit) {
-      req.body.unit = 'cm'; // Default unit if not provided
+      req.body.unit = 'cm';
     }
     
     next();
@@ -170,6 +169,5 @@ export const validateWaterLevelData = (req: Request, res: Response, next: NextFu
       message: 'Terjadi kesalahan saat validasi data level air',
       error: error instanceof Error ? error.message : 'Unknown validation error'
     });
-    // No return statement needed here
   }
 };

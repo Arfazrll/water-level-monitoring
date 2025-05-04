@@ -1,5 +1,3 @@
-// FrontEnd/src/components/settings/ThresholdForm.tsx
-
 import React, { useState } from 'react';
 import { useAppContext } from '@/context/AppContext';
 import { ThresholdSettings } from '@/lib/types';

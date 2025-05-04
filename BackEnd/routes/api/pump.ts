@@ -1,5 +1,3 @@
-//pump.ts
-
 import express, { Request, Response } from 'express';
 import PumpLog from '../../models/PumpLog';
 import Settings from '../../models/Setting';
@@ -9,7 +7,7 @@ import { broadcastPumpStatus } from '../../services/wsService';
 
 const router = express.Router();
 
-// Store current pump state in memory (would use Redis in production)
+// Store current pump state in memory
 let pumpState = {
   isActive: false,
   mode: 'auto' as 'auto' | 'manual',

@@ -46,7 +46,6 @@ router.post('/register', async (req: Request, res: Response) => {
     }
     
     // Create new user
-    // Gunakan cast ke UserDocument untuk memberitahu TypeScript struktur object yang diharapkan
     const user = await User.create({
       name,
       email,
@@ -54,7 +53,6 @@ router.post('/register', async (req: Request, res: Response) => {
     }) as UserDocument;
     
     if (user) {
-      // Sekarang TypeScript tahu bahwa user._id adalah ObjectId
       const userId = user._id.toString();
       
       res.status(201).json({
@@ -85,7 +83,6 @@ router.post('/login', async (req: Request, res: Response) => {
     
     // Check if user exists and password matches
     if (user && (await user.matchPassword(password))) {
-      // Sekarang TypeScript tahu bahwa user._id adalah ObjectId
       const userId = user._id.toString();
       
       res.json({
@@ -109,7 +106,6 @@ router.post('/login', async (req: Request, res: Response) => {
 // @access  Private
 router.get('/profile', protect, async (req: AuthRequest, res: Response) => {
   try {
-    // TypeScript requires us to type check req.user._id
     if (!req.user || !req.user._id) {
       res.status(401).json({ message: 'Not authorized' });
       return;

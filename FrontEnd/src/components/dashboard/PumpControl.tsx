@@ -1,4 +1,3 @@
-// src/components/dashboard/PumpControl.tsx
 import React from 'react';
 import { PumpStatus, ThresholdSettings } from '../../context/AppContext';
 

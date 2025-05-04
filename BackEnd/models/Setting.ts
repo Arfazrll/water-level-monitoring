@@ -1,4 +1,3 @@
-// BackEnd/models/Setting.ts (Perbaikan)
 import mongoose, { Document, Schema, Model } from 'mongoose';
 
 export interface ThresholdSettings {

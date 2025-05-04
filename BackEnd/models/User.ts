@@ -41,7 +41,6 @@ UserSchema.methods.matchPassword = async function (enteredPassword: string): Pro
 };
 
 // Encrypt password using bcrypt
-// We need to explicitly type 'this' to fix the TypeScript error
 UserSchema.pre('save', async function(this: User, next) {
   if (!this.isModified('password')) {
     next();

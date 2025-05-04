@@ -1,4 +1,3 @@
-// BackEnd/scripts/initDb.ts
 import mongoose from 'mongoose';
 import dotenv from 'dotenv';
 import Setting from '../models/Setting';

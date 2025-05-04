@@ -1,4 +1,3 @@
-// BackEnd/server.ts
 import express, { Request, Response, NextFunction } from 'express';
 import http from 'http';
 import dotenv from 'dotenv';
@@ -11,17 +10,14 @@ import { initWebSocketServer, getWebSocketStatus } from './services/wsService';
 
 // Import services for initialization
 import { initSensor, sensorEvents, getBuzzerStatus } from './services/sensorService';
-
-// Import routes - PERBAIKAN: Gunakan nama file yang benar dan konsisten
-// Pastikan semua file menggunakan format kebab-case (huruf kecil)
-import waterLevelRoutes from './routes/api/water-level';  // Seharusnya file bernama "water-level.ts"
+import waterLevelRoutes from './routes/api/water-level';
 import alertsRoutes from './routes/api/alerts';
 import pumpRoutes from './routes/api/pump';
 import settingsRoutes from './routes/api/settings';
 import esp32Routes from './routes/api/esp32';
 import authRoutes from './routes/auth';
 
-// Inisialisasi variabel lingkungan - prioritaskan sebelum eksekusi kode lainnya
+// Inisialisasi variabel lingkungan
 dotenv.config();
 
 // Inisialisasi Express
@@ -41,14 +37,13 @@ let serverStatus = {
 };
 
 // Konfigurasi middleware fundamental
-app.use(bodyParser.json({ limit: '1mb' })); // Meningkatkan batas ukuran JSON
+app.use(bodyParser.json({ limit: '1mb' }));
 app.use(express.urlencoded({ extended: true, limit: '1mb' }));
 
 // Definisi opsi CORS
 const corsOptions = {
   origin: function(origin: string | undefined, callback: (err: Error | null, allow?: boolean) => void) {
     // Izinkan permintaan dari origin apapun termasuk ESP32
-    // Di production, ini seharusnya dibatasi lebih ketat
     callback(null, true);
   },
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
@@ -153,10 +148,7 @@ app.use((err: Error, req: Request, res: Response, next: NextFunction) => {
 
 const server = http.createServer(app);
 
-/**
- * Koneksi ke database dengan mekanisme retry
- * Implementasi pattern reliable connectivity dengan exponential backoff
- */
+// Koneksi ke database dengan mekanisme retry
 const connectWithRetry = async (retries = 5, interval = 5000) => {
   let currentRetry = 0;
   
@@ -206,17 +198,14 @@ const connectWithRetry = async (retries = 5, interval = 5000) => {
  */
 const handleSensorReading = async (data: { level: number, unit: string, timestamp: Date }) => {
   try {
-    // Logika penanganan sensor di sini - silakan tambahkan jika diperlukan
+    // Logika penanganan sensor di sini
     console.log(`Level air dari sensor diterima: ${data.level} ${data.unit}`);
   } catch (error) {
     console.error('Error memproses pembacaan sensor:', error);
   }
 };
 
-/**
- * Fungsi inisialisasi server dengan sekuens startup terstruktur
- * Implementasi pattern graceful startup dengan fallback modes
- */
+// Fungsi inisialisasi server dengan sekuens startup terstruktur
 const startServer = async () => {
   // Inisialisasi koneksi database dengan mekanisme retry
   await connectWithRetry(3, 3000);

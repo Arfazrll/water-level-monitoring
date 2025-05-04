@@ -1,4 +1,3 @@
-// src/hooks/useWaterLevel.ts
 import { useState, useEffect, useCallback } from 'react';
 import { WaterLevelData } from '../context/AppContext';
 

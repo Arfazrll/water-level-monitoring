@@ -1,4 +1,3 @@
-// BackEnd/routes/api/esp32.ts
 import express, { Request, Response, NextFunction } from 'express';
 import WaterLevel from '../../models/WaterLevel';
 import Settings from '../../models/Setting';
@@ -9,14 +8,11 @@ import { activateBuzzer, deactivateBuzzer } from '../../services/sensorService';
 
 const router = express.Router();
 
-// Fungsi handler untuk data ESP32 dengan validasi dan logging yang lebih baik
 const handleEsp32Data = async (req: Request, res: Response, next: NextFunction) => {
   try {
-    // PERBAIKAN: Cek log body dari ESP32
     console.log('ESP32 data received:', req.body);
     console.log('Headers:', req.headers);
     
-    // PERBAIKAN: Validasi input data - menerima format data dari ESP32
     let distance = req.body.distance;
     
     if (distance === undefined) {
@@ -102,12 +98,8 @@ const handleEsp32Data = async (req: Request, res: Response, next: NextFunction) 
     }
     
     const { thresholds, notifications, pumpMode } = settings;
-    
-    // Konversi jarak ke level air dengan beberapa perbaikan
-    // PERBAIKAN: Pastikan kita membatasi jarak dengan benar
     const validDistance = Math.max(0, Math.min(distance, thresholds.maxLevel));
     
-    // PERBAIKAN: Perhitungan level air dari jarak
     // Level air = Max Level - Jarak Sensor ke Permukaan
     const waterLevel = Math.max(0, Math.min(thresholds.maxLevel - validDistance, thresholds.maxLevel));
     
@@ -158,8 +150,7 @@ const handleEsp32Data = async (req: Request, res: Response, next: NextFunction) 
           acknowledged: false
         }).sort({ createdAt: -1 });
         
-        // Only create a new alert if there isn't an existing one of the same type
-        // or if the existing one is older than 30 minutes
+        // Only create a new alert if there isn't an existing one of the same type or if the existing one is older than 30 minutes
         const shouldCreateNewAlert = !existingAlert || 
           (Date.now() - existingAlert.createdAt.getTime() > 30 * 60 * 1000);
         
@@ -212,7 +203,6 @@ const handleEsp32Data = async (req: Request, res: Response, next: NextFunction) 
       }
     } else {
       // If water level is normal, check if we need to deactivate the buzzer
-      // Only deactivate if there are no active alerts
       const activeAlerts = await Alert.countDocuments({ acknowledged: false });
       
       if (activeAlerts === 0) {
@@ -225,7 +215,6 @@ const handleEsp32Data = async (req: Request, res: Response, next: NextFunction) 
       const shouldActivatePump = waterLevel >= thresholds.pumpActivationLevel;
       const shouldDeactivatePump = waterLevel <= thresholds.pumpDeactivationLevel;
       
-      // Tambahkan kode kendali pompa di sini jika diperlukan
       if (shouldActivatePump) {
         console.log('Auto pump activation recommended');
       } else if (shouldDeactivatePump) {
@@ -255,7 +244,6 @@ const handleEsp32Data = async (req: Request, res: Response, next: NextFunction) 
     console.error('Error processing ESP32 data:', error);
     console.error('Request body:', req.body);
     
-    // Format respons error yang konsisten
     res.status(500).json({ 
       success: false, 
       message: 'Gagal memproses data ESP32',
@@ -276,7 +264,6 @@ router.get('/test', (req, res) => {
   });
 });
 
-// PERBAIKAN: Gunakan route dengan benar
 router.post('/data', handleEsp32Data);
 
 export default router;

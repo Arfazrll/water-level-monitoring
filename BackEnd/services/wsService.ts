@@ -1,4 +1,3 @@
-// BackEnd/services/wsService.ts
 import { Server as HttpServer } from 'http';
 import WebSocket, { WebSocketServer } from 'ws';
 import { v4 as uuidv4 } from 'uuid';
@@ -20,7 +19,7 @@ let wsStatus = {
   startTime: new Date()
 };
 
-// Set untuk menyimpan klien yang terhubung (kompatibilitas dengan kode lama)
+// Set untuk menyimpan klien yang terhubung
 const connectedClients = new Set<WebSocket>();
 
 // Menyimpan semua koneksi klien aktif dengan metadatanya
@@ -77,7 +76,6 @@ export const initWebSocketServer = (server: HttpServer): WebSocketServer => {
         clientType: 'web' // default, bisa diubah berdasarkan info dari klien
       });
       
-      // Menambahkan ke set untuk kompatibilitas dengan kode lama
       connectedClients.add(ws);
       
       // Memperbarui metrik
@@ -254,7 +252,7 @@ export const broadcast = (data: any): boolean => {
 };
 
 /**
- * Implementasi baru broadcast dengan fitur tambahan (kompatibilitas mundur)
+ * Implementasi baru broadcast dengan fitur tambahan
  */
 export const broadcastMessage = (
   message: WebSocketMessage,
@@ -369,7 +367,7 @@ export const getWebSocketStatus = () => {
 };
 
 /**
- * Broadcast data level air - implementasi dari kode lama
+ * Broadcast data level air
  */
 export const broadcastWaterLevel = (waterLevel: any): boolean => {
   if (!waterLevel) return false;
@@ -387,7 +385,7 @@ export const broadcastWaterLevel = (waterLevel: any): boolean => {
 };
 
 /**
- * Broadcast peringatan - implementasi dari kode lama
+ * Broadcast peringatan
  */
 export const broadcastAlert = (alert: any): boolean => {
   if (!alert) return false;
@@ -408,13 +406,12 @@ export const broadcastAlert = (alert: any): boolean => {
 };
 
 /**
- * Broadcast pengaturan sistem - implementasi untuk settings.ts
+ * Broadcast pengaturan sistem
  */
 export const broadcastSettings = (settings: any): boolean => {
   if (!settings) return false;
   
   // Struktur pesan disesuaikan dengan format yang digunakan di settings.ts
-  // Settings bisa berupa settings.thresholds atau settings objek lengkap
   const payload = {
     type: 'settings',
     data: {
@@ -434,7 +431,7 @@ export const broadcastSettings = (settings: any): boolean => {
 };
 
 /**
- * Broadcast status pompa - implementasi untuk pump.ts
+ * Broadcast status pompa
  */
 export const broadcastPumpStatus = (pumpStatus: any): boolean => {
   if (!pumpStatus) return false;
@@ -453,7 +450,7 @@ export const broadcastPumpStatus = (pumpStatus: any): boolean => {
 };
 
 /**
- * Mengirim update ketinggian air ke semua klien - implementasi baru
+ * Mengirim update ketinggian air ke semua klien
  */
 export const sendWaterLevelUpdate = (waterLevelData: any): number => {
   return broadcastMessage({
@@ -463,7 +460,7 @@ export const sendWaterLevelUpdate = (waterLevelData: any): number => {
 };
 
 /**
- * Mengirim notifikasi peringatan ke semua klien - implementasi baru
+ * Mengirim notifikasi peringatan ke semua klien
  */
 export const sendAlert = (alertData: any): number => {
   return broadcastMessage({

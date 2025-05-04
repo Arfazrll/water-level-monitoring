@@ -1,4 +1,3 @@
-// BackEnd/routes/api/settings.ts
 import express, { Request, Response } from 'express';
 import Settings from '../../models/Setting';
 import { validateThresholdSettings } from '../../middleware/validate';
@@ -13,7 +12,6 @@ const router = express.Router();
 router.get('/', async (req: Request, res: Response) => {
   try {
     // Use findOne instead of calling a static method
-    // We'll get the first (and only) settings document
     const settings = await Settings.findOne().lean();
     
     if (!settings) {

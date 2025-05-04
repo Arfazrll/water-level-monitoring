@@ -1,5 +1,3 @@
-// BackEnd/routes/api/alerts.ts
-
 import express, { Request, Response, NextFunction, Router } from 'express';
 import Alert from '../../models/Alert';
 import { protect } from '../../middleware/auth';
@@ -156,7 +154,6 @@ router.put('/:id/acknowledge', async (req: Request, res: Response) => {
       return;
     }
     
-    // Jika sudah diakui sebelumnya, cukup beri tahu bahwa berhasil
     if (alert.acknowledged) {
       res.json({
         success: true,
@@ -180,7 +177,6 @@ router.put('/:id/acknowledge', async (req: Request, res: Response) => {
       console.log('Semua peringatan diakui, buzzer dinonaktifkan');
     }
     
-    // Broadcast status peringatan yang diperbarui
     try {
       const broadcastSuccess = broadcastAlert(alert);
       if (!broadcastSuccess) {
@@ -239,7 +235,6 @@ router.post('/acknowledge-all', async (req: Request, res: Response) => {
     
     // Broadcast bahwa semua peringatan diakui
     try {
-      // Ambil peringatan yang diperbarui
       const updatedAlerts = await Alert.find({ 
         _id: { $in: unacknowledgedAlerts.map(a => a._id) } 
       });

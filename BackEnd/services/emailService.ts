@@ -1,5 +1,3 @@
-// BackEnd/services/emailService.ts
-
 import transporter, { isEmailServiceEnabled } from '../config/mailer';
 
 export const sendAlertEmail = async (
@@ -33,7 +31,6 @@ export const sendAlertEmail = async (
       return false;
     }
     
-    // Build HTML email dengan informasi lebih lengkap dan desain yang lebih baik
     const html = `
       <div style="font-family: Arial, sans-serif; padding: 20px; max-width: 600px; margin: 0 auto; border: 1px solid #e4e4e4; border-radius: 5px;">
         <div style="background-color: ${subject.includes('DANGER') ? '#dc3545' : '#ffc107'}; padding: 15px; border-radius: 5px 5px 0 0;">
@@ -171,7 +168,6 @@ export const sendPumpNotification = async (
       ? `Pompa air telah diaktifkan secara otomatis karena ketinggian air mencapai ${waterLevel} ${unit}.`
       : `Pompa air telah dinonaktifkan secara otomatis karena ketinggian air turun menjadi ${waterLevel} ${unit}.`;
     
-    // Build HTML email dengan desain yang lebih baik
     const html = `
       <div style="font-family: Arial, sans-serif; padding: 20px; max-width: 600px; margin: 0 auto; border: 1px solid #e4e4e4; border-radius: 5px;">
         <div style="background-color: #0d6efd; padding: 15px; border-radius: 5px 5px 0 0;">

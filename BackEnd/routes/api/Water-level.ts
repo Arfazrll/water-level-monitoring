@@ -1,4 +1,3 @@
-// BackEnd/routes/api/water-level.ts
 import express from 'express';
 import { validateWaterLevelData } from '../../middleware/validate';
 import WaterLevel from '../../models/WaterLevel';
