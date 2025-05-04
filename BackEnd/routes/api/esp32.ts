@@ -9,16 +9,18 @@ import { activateBuzzer, deactivateBuzzer } from '../../services/sensorService';
 
 const router = express.Router();
 
-// Fungsi handler untuk data ESP32
+// Fungsi handler untuk data ESP32 dengan validasi dan logging yang lebih baik
 const handleEsp32Data = async (req: Request, res: Response, next: NextFunction) => {
   try {
     // Debug logging
     console.log('ESP32 data received:', req.body);
+    console.log('Headers:', req.headers);
     
-    // Validasi input data
+    // Validasi input data - sekarang menerima 'distance' langsung dari ESP32
     const { distance } = req.body;
     
     if (distance === undefined) {
+      console.log('Missing distance data in request');
       res.status(400).json({
         success: false,
         message: 'Nilai jarak sensor (distance) diperlukan',
@@ -28,6 +30,7 @@ const handleEsp32Data = async (req: Request, res: Response, next: NextFunction) 
     }
     
     if (typeof distance !== 'number' || isNaN(distance)) {
+      console.log('Invalid distance type:', typeof distance);
       res.status(400).json({
         success: false,
         message: 'Nilai jarak sensor (distance) harus berupa angka',
@@ -37,6 +40,7 @@ const handleEsp32Data = async (req: Request, res: Response, next: NextFunction) 
     }
     
     if (distance < 0) {
+      console.log('Negative distance value received:', distance);
       res.status(400).json({
         success: false,
         message: 'Nilai jarak sensor (distance) tidak boleh negatif',
@@ -44,6 +48,8 @@ const handleEsp32Data = async (req: Request, res: Response, next: NextFunction) 
       });
       return;
     }
+
+    console.log('Valid distance data received:', distance);
 
     // Get current settings to determine tank height and thresholds
     const settings = await Settings.findOne().lean();
@@ -83,7 +89,7 @@ const handleEsp32Data = async (req: Request, res: Response, next: NextFunction) 
         message: 'Pengaturan default dibuat. Mohon coba lagi.',
         data: {
           rawDistance: distance,
-          waterLevel: 100 - Math.min(distance, 100), // Using default max height of 100cm
+          waterLevel: Math.max(0, Math.min(100 - distance, 100)), // Using default max height of 100cm
           unit: 'cm'
         }
       });
@@ -93,7 +99,11 @@ const handleEsp32Data = async (req: Request, res: Response, next: NextFunction) 
     const { thresholds, notifications, pumpMode } = settings;
     
     // Konversi jarak ke level air dengan beberapa perbaikan
+    // PERBAIKAN: Pastikan kita membatasi jarak dengan benar
     const validDistance = Math.max(0, Math.min(distance, thresholds.maxLevel));
+    
+    // PERBAIKAN: Perhitungan level air dari jarak
+    // Level air = Max Level - Jarak Sensor ke Permukaan
     const waterLevel = Math.max(0, Math.min(thresholds.maxLevel - validDistance, thresholds.maxLevel));
     
     console.log(`Distance: ${distance}cm, Valid distance: ${validDistance}cm, Converted to water level: ${waterLevel}cm`);
@@ -112,6 +122,8 @@ const handleEsp32Data = async (req: Request, res: Response, next: NextFunction) 
       const broadcastSuccess = broadcastWaterLevel(waterLevelReading);
       if (!broadcastSuccess) {
         console.warn('Failed to broadcast water level via WebSocket (no clients or server not initialized)');
+      } else {
+        console.log('Water level broadcast successful');
       }
     } catch (wsError) {
       console.warn('Exception when broadcasting water level via WebSocket:', wsError);

@@ -14,7 +14,7 @@ import { initSensor, sensorEvents, getBuzzerStatus } from './services/sensorServ
 
 // Import routes - PERBAIKAN: Gunakan nama file yang benar dan konsisten
 // Pastikan semua file menggunakan format kebab-case (huruf kecil)
-import waterLevelRoutes from './routes/api/Water-level';  // Seharusnya file bernama "water-level.ts"
+import waterLevelRoutes from './routes/api/water-level';  // Seharusnya file bernama "water-level.ts"
 import alertsRoutes from './routes/api/alerts';
 import pumpRoutes from './routes/api/pump';
 import settingsRoutes from './routes/api/settings';
@@ -41,12 +41,16 @@ let serverStatus = {
 };
 
 // Konfigurasi middleware fundamental
-app.use(bodyParser.json());
-app.use(express.urlencoded({ extended: false }));
+app.use(bodyParser.json({ limit: '1mb' })); // Meningkatkan batas ukuran JSON
+app.use(express.urlencoded({ extended: true, limit: '1mb' }));
 
 // Definisi opsi CORS
 const corsOptions = {
-  origin: process.env.FRONTEND_URL || 'http://localhost:3000',
+  origin: function(origin: string | undefined, callback: (err: Error | null, allow?: boolean) => void) {
+    // Izinkan permintaan dari origin apapun termasuk ESP32
+    // Di production, ini seharusnya dibatasi lebih ketat
+    callback(null, true);
+  },
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With'],
   credentials: true, // Izinkan kredensial
@@ -61,11 +65,13 @@ app.use(cors(corsOptions));
 // Middleware untuk logging request dengan pengukuran durasi
 app.use((req: Request, res: Response, next: NextFunction) => {
   const start = Date.now();
-  console.log(`[${new Date().toISOString()}] ${req.method} ${req.originalUrl}`);
+  const ip = req.headers['x-forwarded-for'] || req.connection.remoteAddress;
+  
+  console.log(`[${new Date().toISOString()}] ${req.method} ${req.originalUrl} dari ${ip}`);
   
   res.on('finish', () => {
     const duration = Date.now() - start;
-    console.log(`[${new Date().toISOString()}] ${req.method} ${req.originalUrl} ${res.statusCode} ${duration}ms`);
+    console.log(`[${new Date().toISOString()}] ${req.method} ${req.originalUrl} ${res.statusCode} ${duration}ms dari ${ip}`);
   });
   
   next();
