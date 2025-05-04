@@ -12,21 +12,26 @@ const router = express.Router();
 // Fungsi handler untuk data ESP32 dengan validasi dan logging yang lebih baik
 const handleEsp32Data = async (req: Request, res: Response, next: NextFunction) => {
   try {
-    // Debug logging
+    // PERBAIKAN: Cek log body dari ESP32
     console.log('ESP32 data received:', req.body);
     console.log('Headers:', req.headers);
     
-    // Validasi input data - sekarang menerima 'distance' langsung dari ESP32
-    const { distance } = req.body;
+    // PERBAIKAN: Validasi input data - menerima format data dari ESP32
+    let distance = req.body.distance;
     
     if (distance === undefined) {
-      console.log('Missing distance data in request');
-      res.status(400).json({
-        success: false,
-        message: 'Nilai jarak sensor (distance) diperlukan',
-        error: 'VALIDATION_ERROR'
-      });
-      return;
+      // Cek format lain yang mungkin dikirim oleh ESP32
+      if (req.body.data && req.body.data.distance !== undefined) {
+        distance = req.body.data.distance;
+      } else {
+        console.log('Missing distance data in request');
+        res.status(400).json({
+          success: false,
+          message: 'Nilai jarak sensor (distance) diperlukan',
+          error: 'VALIDATION_ERROR'
+        });
+        return;
+      }
     }
     
     if (typeof distance !== 'number' || isNaN(distance)) {

@@ -7,7 +7,7 @@ export async function POST(request: NextRequest) {
   try {
     // Parse request body dengan lebih banyak logging
     const bodyText = await request.text();
-    console.log('Raw body received:', bodyText);
+    console.log('Raw body received from ESP32:', bodyText);
     
     let body;
     try {
@@ -21,8 +21,36 @@ export async function POST(request: NextRequest) {
       );
     }
     
-    // Verifikasi format data
-    if (body.distance === undefined && (!body.device || !body.device.id)) {
+    // Transformasi data ke format yang diharapkan oleh backend
+    const adaptedBody: Record<string, unknown> = {};
+    
+    // Jika format asli ESP32
+    if (body.distance !== undefined) {
+      adaptedBody.distance = body.distance;
+    } 
+    // Jika format nested (misalnya ada dalam property data)
+    else if (body.data && body.data.distance !== undefined) {
+      adaptedBody.distance = body.data.distance;
+    } 
+    // Jika dalam format device
+    else if (body.device && body.device.id) {
+      console.log('Format data device ditemukan, mencari distance');
+      
+      // Jika tidak ada distance langsung, cek apakah ada dalam format lain
+      if (!adaptedBody.distance) {
+        return NextResponse.json(
+          { 
+            success: false, 
+            message: 'Format data tidak valid, distance diperlukan',
+            receivedData: body
+          },
+          { status: 400 }
+        );
+      }
+    }
+    
+    // Verifikasi final bahwa kita memiliki distance
+    if (adaptedBody.distance === undefined) {
       console.log('Invalid data format:', body);
       
       return NextResponse.json(
@@ -37,6 +65,7 @@ export async function POST(request: NextRequest) {
     
     // Log data untuk debugging
     console.log('Data valid dari ESP32:', body);
+    console.log('Data yang dikirim ke backend:', adaptedBody);
     
     // Forward data ke backend
     console.log(`Forwarding data to: ${BACKEND_URL}/esp32/data`);
@@ -46,7 +75,7 @@ export async function POST(request: NextRequest) {
       headers: {
         'Content-Type': 'application/json',
       },
-      body: JSON.stringify(body),
+      body: JSON.stringify(adaptedBody),
     });
     
     // Parse response
