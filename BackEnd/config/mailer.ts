@@ -17,19 +17,15 @@ if (!userEmail || !isValidEmail(userEmail)) {
   console.warn(`Email user tidak valid atau tidak dikonfigurasi. Email notifikasi tidak akan berfungsi.`);
 }
 
-// Fungsi untuk membuat transporter
 const createTransporter = () => {
-  // Verifikasi apakah kredensial email sudah dikonfigurasi
   if (!process.env.EMAIL_USER || !process.env.EMAIL_PASSWORD) {
-    console.warn('Kredensial SMTP tidak dikonfigurasi. Notifikasi email tidak akan dikirim.');
+    console.warn('Kredensial SMTP tidak dikonfigurasi. Notifikasi email tidak bisa dikirim.');
     console.warn('Pastikan EMAIL_USER dan EMAIL_PASSWORD diatur di file .env');
     return null;
   }
 
-  // PERBAIKAN: Nonaktifkan debug dan logging di production
   const enableDebug = process.env.NODE_ENV === 'development' && process.env.EMAIL_DEBUG === 'true';
   
-  // Coba buat transporter dengan kredensial yang telah dikonfigurasi
   try {
     return nodemailer.createTransport({
       host: process.env.EMAIL_HOST || 'smtp.gmail.com',
@@ -39,7 +35,6 @@ const createTransporter = () => {
         user: process.env.EMAIL_USER,
         pass: process.env.EMAIL_PASSWORD
       },
-      // PERBAIKAN: Nonaktifkan debug dan logger di production untuk menghindari eksposur kredensial
       debug: enableDebug,
       logger: enableDebug
     });
@@ -49,27 +44,24 @@ const createTransporter = () => {
   }
 };
 
-// Buat transporter
 const transporter = createTransporter();
 
-// Verifikasi koneksi email saat startup
 export const verifyEmailConnection = async (): Promise<boolean> => {
   try {
     if (!process.env.EMAIL_USER || !process.env.EMAIL_PASSWORD || 
         process.env.EMAIL_USER === 'your_email@gmail.com') {
-      console.warn('Konfigurasi email tidak lengkap. Verifikasi email dilewati.');
+      console.warn('Konfigurasi email tidak lengkap.');
       return false;
     }
     
     if (!transporter) {
-      console.warn('Email transporter tidak tersedia. Verifikasi email dilewati.');
+      console.warn('Email transporter tidak tersedia.');
       return false;
     }
     
     await transporter.verify();
     console.log('Koneksi server email berhasil');
     
-    // Kirim email tes
     console.log('Mengirim email tes...');
     try {
       const info = await transporter.sendMail({
@@ -79,7 +71,6 @@ export const verifyEmailConnection = async (): Promise<boolean> => {
         text: 'Sistem monitoring level air berhasil dikonfigurasi.',
         html: '<p>Sistem monitoring level air berhasil dikonfigurasi.</p>'
       });
-      // PERBAIKAN: Kurangi log yang mengandung informasi sensitif
       console.log('Email tes berhasil dikirim:', info.messageId);
     } catch (testError) {
       console.error('Gagal mengirim email tes:', testError);
@@ -87,13 +78,11 @@ export const verifyEmailConnection = async (): Promise<boolean> => {
     
     return true;
   } catch (error: any) {
-    // Error handling yang sudah ada
     console.error('Error koneksi server email:', error);
     return false;
   }
 };
 
-// Fungsi untuk mengecek apakah email berfungsi
 export const isEmailServiceEnabled = (): boolean => {
   return !!(transporter && 
             process.env.EMAIL_USER && 

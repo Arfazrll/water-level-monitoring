@@ -1,22 +1,19 @@
-// BackEnd/config/db.ts
 import mongoose from 'mongoose';
 import dotenv from 'dotenv';
 
 dotenv.config();
 const MONGO_URI = process.env.MONGO_URI || 'mongodb://127.0.0.1:27017/water-monitoring';
 
-// PERBAIKAN: Koneksi DB yang lebih robust
 const connectDB = async (): Promise<void> => {
   try {
     if (!MONGO_URI) {
-      throw new Error('MongoDB connection string tidak ditemukan di variabel lingkungan');
+      throw new Error('MongoDB connection tidak ditemukan');
     }
 
     // Log connection string yang disanitasi (tanpa password)
     const sanitizedUri = MONGO_URI.replace(/\/\/([^:]+):([^@]+)@/, '//***:***@');
     console.log(`Menggunakan connection string: ${sanitizedUri}`);
 
-    // Opsi koneksi yang robust
     const options: mongoose.ConnectOptions = {
       serverSelectionTimeoutMS: 10000,  // Timeout 10 detik
       socketTimeoutMS: 45000,           // Socket timeout 45 detik
@@ -26,12 +23,11 @@ const connectDB = async (): Promise<void> => {
     
     console.log('MongoDB berhasil terhubung');
     
-    // PERBAIKAN: Pengecekan collection
+    // Pengecekan collection
     const db = mongoose.connection.db;
     if (db) {
       console.log(`Terhubung ke database: ${db.databaseName}`);
       
-      // Verifikasi collections yang diperlukan
       const collections = await db.listCollections().toArray();
       const collectionNames = collections.map(c => c.name);
       
@@ -44,7 +40,6 @@ const connectDB = async (): Promise<void> => {
       }
     }
     
-    // Set up event handlers for the connection
     mongoose.connection.on('error', (err) => {
       console.error('MongoDB connection error:', err);
     });
@@ -60,9 +55,9 @@ const connectDB = async (): Promise<void> => {
       console.error('MongoDB mungkin tidak berjalan. Pastikan MongoDB sudah terinstal dan service berjalan.');
       
       if (MONGO_URI.includes('localhost') || MONGO_URI.includes('127.0.0.1')) {
-        console.error('PETUNJUK: Cek MongoDB service di komputer lokal Anda');
+        console.error('Cek MongoDB service dilokal Anda');
       } else if (MONGO_URI.includes('mongodb+srv')) {
-        console.error('PETUNJUK: Pastikan kredensial MongoDB Atlas dan IP whitelist sudah benar');
+        console.error('Pastikan kredensial sudah benar');
       }
     }
     

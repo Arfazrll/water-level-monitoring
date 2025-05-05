@@ -35,13 +35,10 @@ const UserSchema: Schema = new Schema(
   }
 );
 
-// Match user entered password to hashed password in database
 UserSchema.methods.matchPassword = async function (enteredPassword: string): Promise<boolean> {
   return await bcrypt.compare(enteredPassword, this.password);
 };
 
-// Encrypt password using bcrypt
-// We need to explicitly type 'this' to fix the TypeScript error
 UserSchema.pre('save', async function(this: User, next) {
   if (!this.isModified('password')) {
     next();

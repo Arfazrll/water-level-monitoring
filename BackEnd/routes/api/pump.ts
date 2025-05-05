@@ -6,6 +6,7 @@ import Settings from '../../models/Setting';
 import WaterLevel from '../../models/WaterLevel';
 import { protect } from '../../middleware/auth';
 import { broadcastPumpStatus } from '../../services/wsService';
+import { sendPumpNotification } from '../../services/emailService';
 
 const router = express.Router();
 
@@ -76,11 +77,11 @@ router.post('/control', async (req: Request, res: Response) => {
       return;
     }
     
+    // Get current water level for notification
+    const currentLevel = await WaterLevel.findOne().sort({ createdAt: -1 });
+    
     // If turning pump on and it's not already on
     if (isActive && !pumpState.isActive) {
-      // Get current water level
-      const currentLevel = await WaterLevel.findOne().sort({ createdAt: -1 });
-      
       // Create a new pump log entry
       const pumpLog = new PumpLog({
         isActive: true,
@@ -97,6 +98,21 @@ router.post('/control', async (req: Request, res: Response) => {
         mode: settings.pumpMode,
         lastActivated: new Date().toISOString()
       };
+      
+      // Send email notification if enabled
+      if (settings.notifications && settings.notifications.emailEnabled && 
+          settings.notifications.notifyOnPumpActivation) {
+        try {
+          await sendPumpNotification(
+            settings.notifications.emailAddress,
+            true,
+            currentLevel ? currentLevel.level : 0,
+            currentLevel ? currentLevel.unit : 'cm'
+          );
+        } catch (emailError) {
+          console.error('Failed to send pump activation email:', emailError);
+        }
+      }
     } 
     // If turning pump off and it's currently on
     else if (!isActive && pumpState.isActive) {
@@ -132,6 +148,21 @@ router.post('/control', async (req: Request, res: Response) => {
         mode: settings.pumpMode,
         lastActivated: pumpState.lastActivated
       };
+      
+      // Send email notification if enabled
+      if (settings.notifications && settings.notifications.emailEnabled && 
+          settings.notifications.notifyOnPumpActivation) {
+        try {
+          await sendPumpNotification(
+            settings.notifications.emailAddress,
+            false,
+            currentLevel ? currentLevel.level : 0,
+            currentLevel ? currentLevel.unit : 'cm'
+          );
+        } catch (emailError) {
+          console.error('Failed to send pump deactivation email:', emailError);
+        }
+      }
     }
     
     // Broadcast the pump status to WebSocket clients
@@ -201,6 +232,21 @@ router.post('/mode', async (req: Request, res: Response) => {
           
           // Broadcast the pump status
           broadcastPumpStatus(pumpState);
+          
+          // Send email notification if enabled
+          if (settings.notifications && settings.notifications.emailEnabled && 
+              settings.notifications.notifyOnPumpActivation) {
+            try {
+              await sendPumpNotification(
+                settings.notifications.emailAddress,
+                true,
+                currentLevel.level,
+                currentLevel.unit
+              );
+            } catch (emailError) {
+              console.error('Failed to send pump activation email:', emailError);
+            }
+          }
         }
         // If water level is below deactivation threshold and pump is active
         else if (shouldDeactivate && pumpState.isActive) {
@@ -239,6 +285,21 @@ router.post('/mode', async (req: Request, res: Response) => {
           
           // Broadcast the pump status
           broadcastPumpStatus(pumpState);
+          
+          // Send email notification if enabled
+          if (settings.notifications && settings.notifications.emailEnabled && 
+              settings.notifications.notifyOnPumpActivation) {
+            try {
+              await sendPumpNotification(
+                settings.notifications.emailAddress,
+                false,
+                currentLevel.level,
+                currentLevel.unit
+              );
+            } catch (emailError) {
+              console.error('Failed to send pump deactivation email:', emailError);
+            }
+          }
         }
       }
     }

@@ -6,13 +6,11 @@ const AlertsTable: React.FC = () => {
   const [selectedFilter, setSelectedFilter] = useState<'all' | 'warning' | 'danger'>('all');
   const [sortOrder, setSortOrder] = useState<'newest' | 'oldest'>('newest');
 
-  // Filter peringatan berdasarkan filter yang dipilih
   const filteredAlerts = alerts.filter(alert => {
     if (selectedFilter === 'all') return true;
     return alert.type === selectedFilter;
   });
 
-  // Urutkan peringatan berdasarkan urutan yang dipilih
   const sortedAlerts = [...filteredAlerts].sort((a, b) => {
     const dateA = new Date(a.timestamp).getTime();
     const dateB = new Date(b.timestamp).getTime();

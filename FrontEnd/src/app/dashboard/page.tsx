@@ -1,4 +1,3 @@
-// src/app/dashboard/page.tsx
 "use client";
 
 import React from 'react';
@@ -27,7 +26,6 @@ export default function DashboardPage() {
     togglePumpMode 
   } = useAppContext();
 
-  // Loading state
   if (isLoading) {
     return (
       <div className="flex items-center justify-center min-h-screen">
@@ -39,7 +37,6 @@ export default function DashboardPage() {
     );
   }
 
-  // Error state
   if (error) {
     return (
       <div className="max-w-4xl mx-auto my-10 p-6 bg-red-50 rounded-lg border border-red-200">
@@ -55,7 +52,6 @@ export default function DashboardPage() {
     );
   }
 
-  // Check if required data is available
   if (!dataAvailable || !settings || !currentLevel) {
     return (
       <div className="max-w-4xl mx-auto my-10 p-6 bg-yellow-50 rounded-lg border border-yellow-200">
@@ -81,7 +77,6 @@ export default function DashboardPage() {
     );
   }
 
-  // Count unacknowledged alerts
   const activeAlerts = alerts.filter(a => !a.acknowledged).length;
 
   return (

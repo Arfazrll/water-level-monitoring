@@ -1,13 +1,9 @@
-// BackEnd/services/sensorService.ts (Perbaikan)
-
 import { EventEmitter } from 'events';
 import { SerialPort } from 'serialport'; // Correct import for version 10+
 import { ReadlineParser } from '@serialport/parser-readline';
 
-// Event emitter untuk komunikasi sensor
 export const sensorEvents = new EventEmitter();
 
-// Status buzzer
 let buzzerActive = false;
 let buzzerTimeout: NodeJS.Timeout | null = null;
 
@@ -25,7 +21,6 @@ const ARDUINO_BAUD_RATE = parseInt(process.env.ARDUINO_BAUD_RATE || '115200');
  */
 export const initSensor = () => {
   try {
-    // Coba terhubung ke sensor fisik via Serial
     const portPath = process.env.ARDUINO_PORT || (
       process.platform === 'win32' ? 'COM3' : // Windows
       process.platform === 'darwin' ? '/dev/tty.usbmodem1101' : // macOS
@@ -42,22 +37,18 @@ export const initSensor = () => {
 
     parser = sensorPort.pipe(new ReadlineParser({ delimiter: '\r\n' }));
     
-    // Handle data dari serial
     if (parser) {
       parser.on('data', (data: string) => {
         console.log('Raw sensor data:', data);
         try {
-          // Format data dari Arduino diharapkan: "water_level:XX.XX"
-          // Tetapi kita juga mendukung format lain seperti JSON
+
           if (data.startsWith('{') && data.endsWith('}')) {
-            // Format JSON
             try {
               const jsonData = JSON.parse(data);
               if (jsonData.water_level !== undefined) {
                 const level = parseFloat(jsonData.water_level);
                 
                 if (!isNaN(level)) {
-                  // Emit event dengan data
                   const waterLevel = {
                     level: Math.max(0, Math.min(100, Math.round(level * 10) / 10)),
                     unit: 'cm',
@@ -72,14 +63,12 @@ export const initSensor = () => {
               console.error('Error parsing JSON sensor data:', jsonError);
             }
           } else {
-            // Format text: "water_level:XX.XX"
             const parts = data.trim().split(':');
             
             if (parts.length === 2 && parts[0] === 'water_level') {
               const level = parseFloat(parts[1]);
               
               if (!isNaN(level)) {
-                // Emit event dengan data
                 const waterLevel = {
                   level: Math.max(0, Math.min(100, Math.round(level * 10) / 10)),
                   unit: 'cm',
@@ -97,12 +86,10 @@ export const initSensor = () => {
       });
     }
     
-    // Handle koneksi
     sensorPort.on('open', () => {
       console.log('Koneksi sensor berhasil dibuka');
     });
     
-    // Handle error
     sensorPort.on('error', (err: Error) => {
       console.error('Error koneksi sensor:', err.message);
       console.error('Pastikan Arduino terhubung ke port yang benar dan program Arduino telah diupload dengan benar');
@@ -122,7 +109,6 @@ export const initSensor = () => {
  * @param timeout Waktu dalam milidetik sebelum buzzer dinonaktifkan (default: 10s)
  */
 export const activateBuzzer = (type: 'warning' | 'danger', autoDeactivate = false, timeout = 10000) => {
-  // Clear previous timeout if exists
   if (buzzerTimeout) {
     clearTimeout(buzzerTimeout);
     buzzerTimeout = null;
@@ -130,10 +116,8 @@ export const activateBuzzer = (type: 'warning' | 'danger', autoDeactivate = fals
   
   buzzerActive = true;
 
-  // Jika menggunakan Arduino, kirim perintah ke buzzer
   if (sensorPort && sensorPort.isOpen) {
     try {
-      // Format: "buzzer:on:type" where type is 1 for warning, 2 for danger
       const buzzerType = type === 'danger' ? '2' : '1';
       sensorPort.write(`buzzer:on:${buzzerType}\n`);
       console.log(`Buzzer activated for ${type.toUpperCase()} alert!`);
@@ -144,7 +128,6 @@ export const activateBuzzer = (type: 'warning' | 'danger', autoDeactivate = fals
     console.log(`BUZZER ACTIVATED for ${type.toUpperCase()} alert! (Hardware not connected)`);
   }
   
-  // Auto deactivate buzzer after timeout if requested
   if (autoDeactivate) {
     buzzerTimeout = setTimeout(() => {
       deactivateBuzzer();
@@ -168,7 +151,6 @@ export const deactivateBuzzer = () => {
   if (buzzerActive) {
     buzzerActive = false;
     
-    // Jika menggunakan Arduino, kirim perintah untuk mematikan buzzer
     if (sensorPort && sensorPort.isOpen) {
       try {
         sensorPort.write("buzzer:off\n");
@@ -191,7 +173,6 @@ export const testBuzzer = (duration: number = 1000) => {
     activateBuzzer('warning');
     console.log(`Testing buzzer for ${duration}ms`);
     
-    // Clear any existing timeout
     if (buzzerTimeout) {
       clearTimeout(buzzerTimeout);
     }

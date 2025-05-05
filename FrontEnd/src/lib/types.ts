@@ -1,5 +1,3 @@
-
-
 export interface ThresholdSettings {
   warningLevel: number;
   dangerLevel: number;
@@ -25,7 +23,7 @@ export interface DeviceStatus {
 
 export interface WebSocketMessage {
   type: string;
-  data?: unknown;  // Making data optional with ?
+  data?: unknown;  
   timestamp?: string;
 }
 

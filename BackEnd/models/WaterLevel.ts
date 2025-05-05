@@ -23,7 +23,6 @@ const WaterLevelSchema: Schema = new Schema(
   }
 );
 
-// Index for efficient time-based queries
 WaterLevelSchema.index({ createdAt: -1 });
 
 export default mongoose.model<WaterLevel>('WaterLevel', WaterLevelSchema);

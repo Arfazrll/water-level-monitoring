@@ -3,28 +3,22 @@
 import React from 'react';
 import { AlertData, ThresholdSettings } from '../../context/AppContext';
 
-// Definisi tipe props untuk AlertStatus
 interface AlertStatusProps {
   alerts: AlertData[];
   settings: ThresholdSettings;
   onAcknowledge: (alertId: string) => Promise<void>;
   onAcknowledgeAll: () => Promise<void>;
-  isLoading?: boolean; // Menambahkan properti ini
+  isLoading?: boolean; 
 }
 
 const AlertStatus: React.FC<AlertStatusProps> = ({ alerts, settings, onAcknowledge, onAcknowledgeAll, isLoading = false }) => {
-  // Get the latest unacknowledged alert
   const latestAlert = alerts
     .filter(alert => !alert.acknowledged)
     .sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime())[0];
   
-  // Count unacknowledged alerts
   const unacknowledgedCount = alerts.filter(alert => !alert.acknowledged).length;
-  
-  // Determine if buzzer is active (any unacknowledged alerts)
   const buzzerActive = unacknowledgedCount > 0;
   
-  // Determine alarm status based on alerts
   const getAlarmStatus = () => {
     if (latestAlert && latestAlert.type === 'danger') {
       return {
@@ -64,7 +58,6 @@ const AlertStatus: React.FC<AlertStatusProps> = ({ alerts, settings, onAcknowled
   const alarmStatus = getAlarmStatus();
   const isAlarmActive = !!latestAlert;
 
-  // Show loading state if isLoading is true
   if (isLoading) {
     return (
       <div className="bg-white p-4 rounded-lg shadow-md">

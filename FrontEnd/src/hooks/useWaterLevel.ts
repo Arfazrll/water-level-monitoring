@@ -1,4 +1,3 @@
-// src/hooks/useWaterLevel.ts
 import { useState, useEffect, useCallback } from 'react';
 import { WaterLevelData } from '../context/AppContext';
 
@@ -47,12 +46,10 @@ export const useWaterLevelData = ({
     }
   }, [limit]);
 
-  // Initial fetch
   useEffect(() => {
     fetchData();
   }, [fetchData]);
 
-  // Polling
   useEffect(() => {
     if (pollingInterval <= 0) return;
     

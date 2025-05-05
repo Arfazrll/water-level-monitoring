@@ -1,4 +1,3 @@
-// FrontEnd/src/lib/websocket.ts
 import { Dispatch, SetStateAction } from 'react';
 import { WebSocketMessage } from './types';
 
@@ -35,7 +34,6 @@ export const connectWebSocket = (
       }
     }
     
-    // Use WebSocket URL from environment variable
     const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
     const host = process.env.NEXT_PUBLIC_WS_URL || 'localhost:5000';
     const wsUrl = `${protocol}//${host}/ws`;
@@ -50,7 +48,6 @@ export const connectWebSocket = (
         setIsConnected(true);
         reconnectAttempts = 0;
         
-        // Send initial ping
         if (ws && ws.readyState === WebSocket.OPEN) {
           ws.send(JSON.stringify({ 
             type: 'ping', 
@@ -66,9 +63,7 @@ export const connectWebSocket = (
         try {
           const message = JSON.parse(event.data);
           
-          // Handle ping/pong for keepalive
           if (message.type === 'ping') {
-            // Respond with pong
             if (ws && ws.readyState === WebSocket.OPEN) {
               ws.send(JSON.stringify({
                 type: 'pong',
@@ -79,13 +74,11 @@ export const connectWebSocket = (
               }));
             }
           } else if (message.type === 'pong') {
-            // Calculate latency if needed
             if (message.data?.originalTimestamp) {
               const latency = Date.now() - message.data.originalTimestamp;
               console.log(`WebSocket latency: ${latency}ms`);
             }
           } else {
-            // Process other messages through handler
             handleWebSocketMessage(message);
           }
         } catch (error) {
@@ -97,7 +90,6 @@ export const connectWebSocket = (
         console.log(`WebSocket terputus. Kode: ${event.code}, Alasan: ${event.reason || 'Tidak ada alasan'}`);
         setIsConnected(false);
         
-        // Implementasi exponential backoff untuk percobaan koneksi ulang
         if (reconnectAttempts < maxReconnectAttempts) {
           reconnectAttempts++;
           const delay = getReconnectDelay();
@@ -111,23 +103,20 @@ export const connectWebSocket = (
           reconnectTimer = setTimeout(connect, delay);
         } else {
           console.error(`Percobaan koneksi ulang maksimum (${maxReconnectAttempts}) tercapai. WebSocket terputus.`);
-          // Reset setelah periode cool-down
           setTimeout(() => {
             reconnectAttempts = 0;
             connect();
-          }, 60000); // 1 menit cool-down
+          }, 60000); 
         }
       };
       
       ws.onerror = (error) => {
         console.error('Error WebSocket:', error);
-        // Biarkan onclose menangani logika reconnect
       };
     } catch (error) {
       console.error('Error membuat koneksi WebSocket:', error);
       setIsConnected(false);
       
-      // Coba reconnect dengan backoff
       if (reconnectAttempts < maxReconnectAttempts) {
         reconnectAttempts++;
         const delay = getReconnectDelay();
@@ -141,10 +130,8 @@ export const connectWebSocket = (
     }
   };
   
-  // Koneksi inisial
   connect();
   
-  // Setup keepalive ping interval
   const pingInterval = setInterval(() => {
     if (ws && ws.readyState === WebSocket.OPEN) {
       try {
@@ -159,9 +146,8 @@ export const connectWebSocket = (
         console.error('Error sending ping:', e);
       }
     }
-  }, 30000); // 30 detik interval
+  }, 30000); 
   
-  // Fungsi cleanup untuk digunakan pada saat unmount komponen
   return () => {
     if (ws) {
       if (ws.readyState === WebSocket.OPEN) {

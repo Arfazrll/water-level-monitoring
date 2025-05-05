@@ -1,4 +1,3 @@
-// BackEnd/routes/api/water-level.ts
 import express from 'express';
 import { validateWaterLevelData } from '../../middleware/validate';
 import WaterLevel from '../../models/WaterLevel';
@@ -22,7 +21,6 @@ router.get('/', async (req, res) => {
       .limit(limit)
       .lean();
     
-    // Return empty array if no data, not 404
     res.json({
       success: true,
       message: 'Data level air berhasil diambil',
@@ -80,7 +78,6 @@ router.post('/', validateWaterLevelData, async (req, res) => {
   try {
     const { level, unit } = req.body;
     
-    // Create and save the water level reading
     const waterLevelReading = new WaterLevel({
       level,
       unit: unit || 'cm',
@@ -88,14 +85,12 @@ router.post('/', validateWaterLevelData, async (req, res) => {
     
     await waterLevelReading.save();
     
-    // Broadcast to WebSocket clients
     try {
       broadcastWaterLevel(waterLevelReading);
     } catch (wsError) {
       console.warn('Error broadcasting water level:', wsError);
     }
     
-    // Get current settings to check against thresholds
     const settings = await Settings.findOne();
     
     if (!settings) {
@@ -112,28 +107,23 @@ router.post('/', validateWaterLevelData, async (req, res) => {
     let alertType: 'warning' | 'danger' | null = null;
     let alertMessage = '';
     
-    // Check against danger threshold
     if (level >= thresholds.dangerLevel) {
       alertType = 'danger';
       alertMessage = `Level air telah mencapai ambang BAHAYA (${level} ${unit || 'cm'})`;
     } 
-    // Check against warning threshold
     else if (level >= thresholds.warningLevel) {
       alertType = 'warning';
       alertMessage = `Level air telah mencapai ambang PERINGATAN (${level} ${unit || 'cm'})`;
     }
     
-    // Create alert if threshold exceeded
     let createdAlert = null;
     if (alertType) {
       try {
-        // Check if there's already an active alert of the same type
         const existingAlert = await Alert.findOne({
           type: alertType,
           acknowledged: false
         }).sort({ createdAt: -1 });
         
-        // Only create new alert if there isn't one or it's older than 30 min
         const shouldCreateNewAlert = !existingAlert || 
           (Date.now() - existingAlert.createdAt.getTime() > 30 * 60 * 1000);
         
@@ -148,17 +138,14 @@ router.post('/', validateWaterLevelData, async (req, res) => {
           await alert.save();
           createdAlert = alert;
           
-          // Activate buzzer based on alert type
           activateBuzzer(alertType);
           
-          // Broadcast alert to WebSocket clients
           try {
             broadcastAlert(alert);
           } catch (wsError) {
             console.warn('Error broadcasting alert:', wsError);
           }
           
-          // Send email notification if enabled
           if (notifications.emailEnabled) {
             if ((alertType === 'warning' && notifications.notifyOnWarning) || 
                 (alertType === 'danger' && notifications.notifyOnDanger)) {

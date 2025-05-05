@@ -1,7 +1,5 @@
 "use client";
 
-// FrontEnd/src/components/dashboard/CurrentLevel.tsx
-
 import React from 'react';
 import { useAppContext } from '@/context/AppContext';
 
@@ -12,7 +10,6 @@ import { useAppContext } from '@/context/AppContext';
 const CurrentLevel: React.FC = () => {
   const { currentLevel, settings, isLoading, error, refreshData } = useAppContext();
 
-  // Penanganan status loading dengan indikator visual
   if (isLoading) {
     return (
       <div className="bg-white p-4 rounded-lg shadow-md">
@@ -25,7 +22,6 @@ const CurrentLevel: React.FC = () => {
     );
   }
 
-  // Penanganan status error dengan resolusi interaktif
   if (error) {
     return (
       <div className="bg-white p-4 rounded-lg shadow-md">
@@ -48,7 +44,6 @@ const CurrentLevel: React.FC = () => {
     );
   }
 
-  // Penanganan kondisi data tidak tersedia dengan visualisasi informatif
   if (!currentLevel || !settings) {
     return (
       <div className="bg-white p-4 rounded-lg shadow-md">
@@ -72,7 +67,6 @@ const CurrentLevel: React.FC = () => {
     );
   }
 
-  // Determinasi status berdasarkan parameter ambang batas
   const getStatusInfo = () => {
     const level = currentLevel.level;
     
@@ -132,10 +126,7 @@ const CurrentLevel: React.FC = () => {
 
   const statusInfo = getStatusInfo();
   
-  // Kalkulasi persentase untuk visualisasi tingkat
   const percentage = (currentLevel.level / settings.maxLevel) * 100;
-
-  // Standardisasi format temporal
   const formattedTime = new Date(currentLevel.timestamp).toLocaleString();
   
   return (
@@ -162,10 +153,10 @@ const CurrentLevel: React.FC = () => {
           style={{ 
             height: `${Math.min(percentage, 100)}%`, 
             backgroundColor: percentage >= 90 
-              ? '#ef4444' // merah untuk kondisi bahaya
+              ? '#ef4444' 
               : percentage >= 70 
-                ? '#f59e0b' // amber untuk kondisi awas
-                : '#3b82f6' // biru untuk kondisi normal
+                ? '#f59e0b' 
+                : '#3b82f6' 
           }}
         >
           {/* Simulasi gelombang dengan animasi */}

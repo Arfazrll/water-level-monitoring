@@ -15,7 +15,6 @@ const TankVisualizer: React.FC<TankVisualizerProps> = ({
   settings,
   isLoading = false
 }) => {
-  // Loading state
   if (isLoading || !settings) {
     return (
       <div className="bg-white p-4 rounded-lg shadow-md">
@@ -30,7 +29,6 @@ const TankVisualizer: React.FC<TankVisualizerProps> = ({
     );
   }
 
-  // No data state
   if (!currentLevel) {
     return (
       <div className="bg-white p-4 rounded-lg shadow-md">
@@ -50,10 +48,8 @@ const TankVisualizer: React.FC<TankVisualizerProps> = ({
     );
   }
 
-  // Determine water level percentage relative to max
   const percentage = Math.min(Math.max((currentLevel.level / settings.maxLevel) * 100, 0), 100);
-  
-  // Determine status based on current level
+
   const getStatusInfo = () => {
     const level = currentLevel.level;
     
@@ -110,7 +106,6 @@ const TankVisualizer: React.FC<TankVisualizerProps> = ({
 
   const statusInfo = getStatusInfo();
   
-  // Format timestamp for display
   const formattedTime = new Date(currentLevel.timestamp).toLocaleString();
 
   return (

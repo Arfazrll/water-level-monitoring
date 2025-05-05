@@ -1,11 +1,9 @@
-// FrontEnd/src/app/api/sensor/route.ts
 import { NextRequest, NextResponse } from 'next/server';
 
 const BACKEND_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000/api';
 
 export async function POST(request: NextRequest) {
   try {
-    // Parse request body dengan lebih banyak logging
     const bodyText = await request.text();
     console.log('Raw body received from ESP32:', bodyText);
     
@@ -20,23 +18,18 @@ export async function POST(request: NextRequest) {
         { status: 400 }
       );
     }
-    
-    // Transformasi data ke format yang diharapkan oleh backend
+
     const adaptedBody: Record<string, unknown> = {};
     
-    // Jika format asli ESP32
     if (body.distance !== undefined) {
       adaptedBody.distance = body.distance;
     } 
-    // Jika format nested (misalnya ada dalam property data)
     else if (body.data && body.data.distance !== undefined) {
       adaptedBody.distance = body.data.distance;
     } 
-    // Jika dalam format device
     else if (body.device && body.device.id) {
       console.log('Format data device ditemukan, mencari distance');
       
-      // Jika tidak ada distance langsung, cek apakah ada dalam format lain
       if (!adaptedBody.distance) {
         return NextResponse.json(
           { 
@@ -49,7 +42,6 @@ export async function POST(request: NextRequest) {
       }
     }
     
-    // Verifikasi final bahwa kita memiliki distance
     if (adaptedBody.distance === undefined) {
       console.log('Invalid data format:', body);
       
@@ -78,7 +70,6 @@ export async function POST(request: NextRequest) {
       body: JSON.stringify(adaptedBody),
     });
     
-    // Parse response
     const responseText = await response.text();
     console.log('Raw response from backend:', responseText);
     
@@ -97,7 +88,6 @@ export async function POST(request: NextRequest) {
       );
     }
     
-    // Return response ke ESP32
     return NextResponse.json(result);
   } catch (error) {
     console.error('Error memproses data sensor:', error);

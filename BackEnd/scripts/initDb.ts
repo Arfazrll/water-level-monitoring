@@ -1,4 +1,3 @@
-// BackEnd/scripts/initDb.ts
 import mongoose from 'mongoose';
 import dotenv from 'dotenv';
 import Setting from '../models/Setting';
@@ -13,7 +12,6 @@ async function initializeDatabase() {
     await mongoose.connect(MONGO_URI);
     console.log('Connected to MongoDB');
 
-    // Check if settings exist, if not create default
     const settingsExist = await Setting.findOne();
     if (!settingsExist) {
       console.log('Creating default settings...');
@@ -39,7 +37,6 @@ async function initializeDatabase() {
       console.log('Default settings created');
     }
 
-    // Check if admin user exists, if not create default
     const adminExists = await User.findOne({ isAdmin: true });
     if (!adminExists) {
       console.log('Creating default admin user...');
@@ -60,5 +57,4 @@ async function initializeDatabase() {
   }
 }
 
-// Run the initialization
 initializeDatabase();

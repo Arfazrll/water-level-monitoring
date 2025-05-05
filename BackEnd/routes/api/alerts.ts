@@ -1,5 +1,3 @@
-// BackEnd/routes/api/alerts.ts
-
 import express, { Request, Response, NextFunction, Router } from 'express';
 import Alert from '../../models/Alert';
 import { protect } from '../../middleware/auth';
@@ -16,7 +14,6 @@ router.get('/', async (req: Request, res: Response) => {
     const type = req.query.type as string;
     const acknowledgedParam = req.query.acknowledged as string;
     
-    // Build filter
     const filter: any = {};
     
     if (type === 'warning' || type === 'danger') {
@@ -33,7 +30,6 @@ router.get('/', async (req: Request, res: Response) => {
       .sort({ createdAt: -1 })
       .lean();
     
-    // Format respons yang konsisten
     res.json({
       success: true,
       message: 'Data peringatan berhasil diambil',
@@ -42,7 +38,6 @@ router.get('/', async (req: Request, res: Response) => {
   } catch (error) {
     console.error('Error mengambil peringatan:', error);
     
-    // Format error yang konsisten
     res.status(500).json({ 
       success: false, 
       message: 'Gagal mengambil data peringatan',
@@ -95,7 +90,6 @@ router.post('/', protect, async (req: Request, res: Response) => {
     
     await alert.save();
     
-    // Broadcast peringatan ke klien WebSocket
     try {
       const broadcastSuccess = broadcastAlert(alert);
       if (!broadcastSuccess) {
@@ -105,7 +99,6 @@ router.post('/', protect, async (req: Request, res: Response) => {
       console.warn('Exception saat broadcast peringatan via WebSocket:', wsError);
     }
     
-    // Format respons sukses yang konsisten
     res.status(201).json({
       success: true,
       message: 'Peringatan berhasil dibuat',
@@ -114,7 +107,6 @@ router.post('/', protect, async (req: Request, res: Response) => {
   } catch (error) {
     console.error('Error membuat peringatan:', error);
     
-    // Format error yang konsisten
     res.status(500).json({ 
       success: false, 
       message: 'Gagal membuat peringatan',
@@ -130,7 +122,6 @@ router.put('/:id/acknowledge', async (req: Request, res: Response) => {
   try {
     const alertId = req.params.id;
     
-    // Validasi ID - pastikan tidak undefined dan memiliki format yang benar
     if (!alertId || alertId === 'undefined' || alertId === 'null') {
       res.status(400).json({ 
         success: false, 
@@ -140,8 +131,7 @@ router.put('/:id/acknowledge', async (req: Request, res: Response) => {
       return;
     }
 
-    // Log untuk debug
-    console.log(`Mencoba mengakui peringatan dengan ID: ${alertId}`);
+    console.log(`Mencoba memverivikasi peringatan dengan ID: ${alertId}`);
     
     const alert = await Alert.findById(alertId);
     
@@ -156,7 +146,6 @@ router.put('/:id/acknowledge', async (req: Request, res: Response) => {
       return;
     }
     
-    // Jika sudah diakui sebelumnya, cukup beri tahu bahwa berhasil
     if (alert.acknowledged) {
       res.json({
         success: true,
@@ -172,7 +161,6 @@ router.put('/:id/acknowledge', async (req: Request, res: Response) => {
     alert.acknowledged = true;
     await alert.save();
     
-    // Cek jika semua peringatan telah diakui dan matikan buzzer jika ya
     const unacknowledgedAlerts = await Alert.countDocuments({ acknowledged: false });
     
     if (unacknowledgedAlerts === 0) {
@@ -180,7 +168,6 @@ router.put('/:id/acknowledge', async (req: Request, res: Response) => {
       console.log('Semua peringatan diakui, buzzer dinonaktifkan');
     }
     
-    // Broadcast status peringatan yang diperbarui
     try {
       const broadcastSuccess = broadcastAlert(alert);
       if (!broadcastSuccess) {
@@ -190,7 +177,6 @@ router.put('/:id/acknowledge', async (req: Request, res: Response) => {
       console.warn('Exception saat broadcast update peringatan via WebSocket:', wsError);
     }
     
-    // Format respons sukses yang konsisten
     res.json({
       success: true,
       message: 'Peringatan berhasil ditandai sebagai diketahui',
@@ -202,7 +188,6 @@ router.put('/:id/acknowledge', async (req: Request, res: Response) => {
   } catch (error) {
     console.error(`Error menandai peringatan ${req.params.id}:`, error);
     
-    // Format error yang konsisten
     res.status(500).json({ 
       success: false, 
       message: 'Gagal menandai peringatan sebagai diketahui',
@@ -216,7 +201,6 @@ router.put('/:id/acknowledge', async (req: Request, res: Response) => {
 // @access  Public (sebaiknya diamankan dengan auth di production)
 router.post('/acknowledge-all', async (req: Request, res: Response) => {
   try {
-    // Temukan semua peringatan yang belum diketahui
     const unacknowledgedAlerts = await Alert.find({ acknowledged: false });
     
     if (unacknowledgedAlerts.length === 0) {
@@ -228,23 +212,18 @@ router.post('/acknowledge-all', async (req: Request, res: Response) => {
       return;
     }
     
-    // Perbarui semua menjadi diketahui
     const updateResult = await Alert.updateMany(
       { acknowledged: false },
       { acknowledged: true }
     );
     
-    // Nonaktifkan buzzer karena semua peringatan telah diakui
     deactivateBuzzer();
     
-    // Broadcast bahwa semua peringatan diakui
     try {
-      // Ambil peringatan yang diperbarui
       const updatedAlerts = await Alert.find({ 
         _id: { $in: unacknowledgedAlerts.map(a => a._id) } 
       });
       
-      // Broadcast setiap peringatan yang diperbarui
       let broadcastSuccessCount = 0;
       
       for (const alert of updatedAlerts) {
@@ -257,7 +236,6 @@ router.post('/acknowledge-all', async (req: Request, res: Response) => {
       console.warn('Gagal broadcast update peringatan via WebSocket:', wsError);
     }
     
-    // Format respons sukses yang konsisten
     res.json({
       success: true,
       message: 'Semua peringatan berhasil ditandai sebagai diketahui',
@@ -272,7 +250,6 @@ router.post('/acknowledge-all', async (req: Request, res: Response) => {
   } catch (error) {
     console.error('Error menandai semua peringatan:', error);
     
-    // Format error yang konsisten
     res.status(500).json({ 
       success: false, 
       message: 'Gagal menandai semua peringatan',

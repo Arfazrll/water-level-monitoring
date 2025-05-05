@@ -1,4 +1,3 @@
-// BackEnd/routes/api/esp32.ts
 import express, { Request, Response, NextFunction } from 'express';
 import WaterLevel from '../../models/WaterLevel';
 import Settings from '../../models/Setting';
@@ -9,18 +8,14 @@ import { activateBuzzer, deactivateBuzzer } from '../../services/sensorService';
 
 const router = express.Router();
 
-// Fungsi handler untuk data ESP32 dengan validasi dan logging yang lebih baik
 const handleEsp32Data = async (req: Request, res: Response, next: NextFunction) => {
   try {
-    // PERBAIKAN: Cek log body dari ESP32
     console.log('ESP32 data received:', req.body);
     console.log('Headers:', req.headers);
     
-    // PERBAIKAN: Validasi input data - menerima format data dari ESP32
     let distance = req.body.distance;
     
     if (distance === undefined) {
-      // Cek format lain yang mungkin dikirim oleh ESP32
       if (req.body.data && req.body.data.distance !== undefined) {
         distance = req.body.data.distance;
       } else {
@@ -56,13 +51,11 @@ const handleEsp32Data = async (req: Request, res: Response, next: NextFunction) 
 
     console.log('Valid distance data received:', distance);
 
-    // Get current settings to determine tank height and thresholds
     const settings = await Settings.findOne().lean();
     
     if (!settings) {
       console.log('No settings found in database, creating default settings');
       
-      // Create default settings if none exist
       const defaultSettings = {
         thresholds: {
           warningLevel: 30,
@@ -88,7 +81,6 @@ const handleEsp32Data = async (req: Request, res: Response, next: NextFunction) 
       
       console.log('Created default settings:', defaultSettings);
       
-      // Use the default settings
       res.status(201).json({
         success: true,
         message: 'Pengaturan default dibuat. Mohon coba lagi.',
@@ -102,18 +94,10 @@ const handleEsp32Data = async (req: Request, res: Response, next: NextFunction) 
     }
     
     const { thresholds, notifications, pumpMode } = settings;
-    
-    // Konversi jarak ke level air dengan beberapa perbaikan
-    // PERBAIKAN: Pastikan kita membatasi jarak dengan benar
     const validDistance = Math.max(0, Math.min(distance, thresholds.maxLevel));
-    
-    // PERBAIKAN: Perhitungan level air dari jarak
-    // Level air = Max Level - Jarak Sensor ke Permukaan
     const waterLevel = Math.max(0, Math.min(thresholds.maxLevel - validDistance, thresholds.maxLevel));
-    
     console.log(`Distance: ${distance}cm, Valid distance: ${validDistance}cm, Converted to water level: ${waterLevel}cm`);
     
-    // Create and save the water level reading
     const waterLevelReading = new WaterLevel({
       level: waterLevel,
       unit: thresholds.unit || 'cm',
@@ -122,7 +106,6 @@ const handleEsp32Data = async (req: Request, res: Response, next: NextFunction) 
     await waterLevelReading.save();
     console.log('Water level reading saved to database:', waterLevelReading);
     
-    // Broadcast to WebSocket clients
     try {
       const broadcastSuccess = broadcastWaterLevel(waterLevelReading);
       if (!broadcastSuccess) {
@@ -138,28 +121,22 @@ const handleEsp32Data = async (req: Request, res: Response, next: NextFunction) 
     let alertMessage = '';
     let createdAlert = null;
     
-    // Check against danger threshold - using greater than or equal
     if (waterLevel >= thresholds.dangerLevel) {
       alertType = 'danger';
       alertMessage = `Level air telah mencapai ambang BAHAYA (${waterLevel.toFixed(1)} ${thresholds.unit || 'cm'})`;
     } 
-    // Check against warning threshold - using greater than or equal
     else if (waterLevel >= thresholds.warningLevel) {
       alertType = 'warning';
       alertMessage = `Level air telah mencapai ambang PERINGATAN (${waterLevel.toFixed(1)} ${thresholds.unit || 'cm'})`;
     }
     
-    // Create alert if threshold exceeded and there isn't already an active alert of the same type
     if (alertType) {
       try {
-        // Check if there's already an unacknowledged alert of the same type
         const existingAlert = await Alert.findOne({
           type: alertType,
           acknowledged: false
         }).sort({ createdAt: -1 });
         
-        // Only create a new alert if there isn't an existing one of the same type
-        // or if the existing one is older than 30 minutes
         const shouldCreateNewAlert = !existingAlert || 
           (Date.now() - existingAlert.createdAt.getTime() > 30 * 60 * 1000);
         
@@ -175,10 +152,8 @@ const handleEsp32Data = async (req: Request, res: Response, next: NextFunction) 
           createdAlert = alert;
           console.log(`Alert created: ${alertType} at level ${waterLevel}`);
           
-          // Activate buzzer based on alert type
           activateBuzzer(alertType);
           
-          // Broadcast alert to WebSocket clients
           try {
             const broadcastSuccess = broadcastAlert(alert);
             if (!broadcastSuccess) {
@@ -188,7 +163,6 @@ const handleEsp32Data = async (req: Request, res: Response, next: NextFunction) 
             console.warn('Exception when broadcasting alert via WebSocket:', wsError);
           }
           
-          // Send email notification if enabled
           if (notifications.emailEnabled) {
             if ((alertType === 'warning' && notifications.notifyOnWarning) || 
                 (alertType === 'danger' && notifications.notifyOnDanger)) {
@@ -211,8 +185,6 @@ const handleEsp32Data = async (req: Request, res: Response, next: NextFunction) 
         console.error('Error creating alert:', alertError);
       }
     } else {
-      // If water level is normal, check if we need to deactivate the buzzer
-      // Only deactivate if there are no active alerts
       const activeAlerts = await Alert.countDocuments({ acknowledged: false });
       
       if (activeAlerts === 0) {
@@ -220,20 +192,17 @@ const handleEsp32Data = async (req: Request, res: Response, next: NextFunction) 
       }
     }
     
-    // Handle automatic pump control if in auto mode
     if (pumpMode === 'auto') {
       const shouldActivatePump = waterLevel >= thresholds.pumpActivationLevel;
       const shouldDeactivatePump = waterLevel <= thresholds.pumpDeactivationLevel;
       
-      // Tambahkan kode kendali pompa di sini jika diperlukan
       if (shouldActivatePump) {
         console.log('Auto pump activation recommended');
       } else if (shouldDeactivatePump) {
         console.log('Auto pump deactivation recommended');
       }
     }
-    
-    // Success response dengan format yang konsisten
+
     res.status(201).json({
       success: true,
       message: 'Data ESP32 berhasil diproses',
@@ -251,11 +220,9 @@ const handleEsp32Data = async (req: Request, res: Response, next: NextFunction) 
     });
     
   } catch (error) {
-    // Detailed error logging
     console.error('Error processing ESP32 data:', error);
     console.error('Request body:', req.body);
     
-    // Format respons error yang konsisten
     res.status(500).json({ 
       success: false, 
       message: 'Gagal memproses data ESP32',
@@ -264,7 +231,6 @@ const handleEsp32Data = async (req: Request, res: Response, next: NextFunction) 
   }
 };
 
-// Endpoint test untuk verifikasi koneksi
 router.get('/test', (req, res) => {
   res.json({ 
     success: true,
@@ -276,7 +242,6 @@ router.get('/test', (req, res) => {
   });
 });
 
-// PERBAIKAN: Gunakan route dengan benar
 router.post('/data', handleEsp32Data);
 
 export default router;

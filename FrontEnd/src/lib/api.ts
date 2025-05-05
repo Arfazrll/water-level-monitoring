@@ -1,10 +1,17 @@
 import { WaterLevelData, AlertData, ThresholdSettings } from './types';
 
-// Gunakan environment variable dengan fallback yang konsisten
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000/api';
 
 if (process.env.NODE_ENV === 'development') {
   console.log('API Base URL:', API_BASE_URL);
+}
+
+interface NotificationSettings {
+  emailEnabled: boolean;
+  emailAddress: string;
+  notifyOnWarning: boolean;
+  notifyOnDanger: boolean;
+  notifyOnPumpActivation: boolean;
 }
 
 /**
@@ -27,7 +34,6 @@ const fetchWithRetry = async (url: string, options: RequestInit = {}, maxRetries
       retries++;
       if (retries >= maxRetries) break;
       
-      // Exponential backoff dengan jitter untuk mencegah thundering herd
       const baseDelay = Math.min(1000 * Math.pow(2, retries), 10000);
       const jitter = baseDelay * 0.2 * (Math.random() - 0.5);
       const delay = baseDelay + jitter;
@@ -54,7 +60,6 @@ const handleApiResponse = async (response: Response) => {
         errorMessage = errorData.message;
       }
     } catch {
-      // Ignore JSON parsing error
     }
     
     throw new Error(errorMessage);
@@ -62,7 +67,6 @@ const handleApiResponse = async (response: Response) => {
   
   const data = await response.json();
   
-  // Penanganan variasi format respons API
   if (data && data.hasOwnProperty('success')) {
     if (!data.success) {
       throw new Error(data.message || 'API request failed');
@@ -180,7 +184,6 @@ export async function updateSettings(settings: ThresholdSettings): Promise<Thres
  */
 export async function acknowledgeAlert(alertId: string): Promise<{ success: boolean, message: string }> {
   try {
-    // Validasi ID peringatan
     if (!alertId || alertId === 'undefined' || alertId === 'null') {
       console.error('Invalid alert ID:', alertId);
       return { 
@@ -293,6 +296,42 @@ export async function fetchPumpStatus() {
     return handleApiResponse(response);
   } catch (error) {
     console.error('Error fetching pump status:', error);
+    throw error;
+  }
+}
+
+/**
+ * Pengambilan pengaturan notifikasi
+ * @returns Objek pengaturan notifikasi
+ */
+export async function fetchNotificationSettings(): Promise<NotificationSettings> {
+  try {
+    const response = await fetchWithRetry(`${API_BASE_URL}/settings/notifications`);
+    return handleApiResponse(response);
+  } catch (error) {
+    console.error('Error fetching notification settings:', error);
+    throw error;
+  }
+}
+
+/**
+ * Pembaruan pengaturan notifikasi
+ * @param settings - Objek pengaturan notifikasi yang akan diperbarui
+ * @returns Objek pengaturan notifikasi yang telah diperbarui
+ */
+export async function updateNotificationSettings(settings: NotificationSettings): Promise<NotificationSettings> {
+  try {
+    const response = await fetchWithRetry(`${API_BASE_URL}/settings/notifications`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(settings),
+    });
+    
+    return handleApiResponse(response);
+  } catch (error) {
+    console.error('Error updating notification settings:', error);
     throw error;
   }
 }

@@ -4,7 +4,6 @@ import User from '../models/User';
 import { protect } from '../middleware/auth';
 import mongoose, { Document } from 'mongoose';
 
-// Definisi interface untuk dokumen User dari Mongoose
 interface UserDocument extends Document {
   _id: mongoose.Types.ObjectId;
   name: string;
@@ -14,7 +13,6 @@ interface UserDocument extends Document {
   matchPassword(enteredPassword: string): Promise<boolean>;
 }
 
-// Interface untuk request autentikasi
 interface AuthRequest extends Request {
   user?: {
     _id: mongoose.Types.ObjectId | string;
@@ -23,7 +21,6 @@ interface AuthRequest extends Request {
 
 const router = express.Router();
 
-// Helper function to generate JWT
 const generateToken = (id: string) => {
   return jwt.sign({ id }, process.env.JWT_SECRET || 'secret', {
     expiresIn: '30d',
@@ -37,7 +34,6 @@ router.post('/register', async (req: Request, res: Response) => {
   try {
     const { name, email, password } = req.body;
     
-    // Check if user already exists
     const userExists = await User.findOne({ email });
     
     if (userExists) {
@@ -45,8 +41,6 @@ router.post('/register', async (req: Request, res: Response) => {
       return;
     }
     
-    // Create new user
-    // Gunakan cast ke UserDocument untuk memberitahu TypeScript struktur object yang diharapkan
     const user = await User.create({
       name,
       email,
@@ -54,7 +48,6 @@ router.post('/register', async (req: Request, res: Response) => {
     }) as UserDocument;
     
     if (user) {
-      // Sekarang TypeScript tahu bahwa user._id adalah ObjectId
       const userId = user._id.toString();
       
       res.status(201).json({
@@ -80,12 +73,9 @@ router.post('/login', async (req: Request, res: Response) => {
   try {
     const { email, password } = req.body;
     
-    // Find user by email dengan eksplisit casting ke UserDocument
     const user = await User.findOne({ email }) as UserDocument | null;
     
-    // Check if user exists and password matches
     if (user && (await user.matchPassword(password))) {
-      // Sekarang TypeScript tahu bahwa user._id adalah ObjectId
       const userId = user._id.toString();
       
       res.json({
@@ -109,7 +99,6 @@ router.post('/login', async (req: Request, res: Response) => {
 // @access  Private
 router.get('/profile', protect, async (req: AuthRequest, res: Response) => {
   try {
-    // TypeScript requires us to type check req.user._id
     if (!req.user || !req.user._id) {
       res.status(401).json({ message: 'Not authorized' });
       return;

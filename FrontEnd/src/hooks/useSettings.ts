@@ -18,7 +18,6 @@ export function useSettings() {
   const [error, setError] = useState<string | null>(null);
   const [isUpdating, setIsUpdating] = useState<boolean>(false);
 
-  // Fetch settings
   useEffect(() => {
     const fetchData = async () => {
       try {
@@ -39,7 +38,6 @@ export function useSettings() {
     fetchData();
   }, []);
 
-  // Update settings
   const updateSettings = async (newSettings: Partial<ThresholdSettings>) => {
     try {
       setIsUpdating(true);
@@ -63,12 +61,9 @@ export function useSettings() {
     }
   };
 
-  // Validate settings before updating
   const validateSettings = (newSettings: Partial<ThresholdSettings>): { isValid: boolean; message?: string } => {
-    // Combine current and new settings for validation
     const combined = { ...settings, ...newSettings };
     
-    // Warning level must be less than danger level
     if (combined.warningLevel >= combined.dangerLevel) {
       return {
         isValid: false,
@@ -76,15 +71,13 @@ export function useSettings() {
       };
     }
     
-    // Pump deactivation level must be less than pump activation level
     if (combined.pumpDeactivationLevel >= combined.pumpActivationLevel) {
       return {
         isValid: false,
         message: 'Pump deactivation level must be lower than pump activation level'
       };
     }
-    
-    // All levels must be within min/max range
+
     if (
       combined.warningLevel > combined.maxLevel ||
       combined.dangerLevel > combined.maxLevel ||

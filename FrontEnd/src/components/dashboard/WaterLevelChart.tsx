@@ -1,6 +1,5 @@
 "use client";
 
-// src/components/dashboard/WaterLevelChart.tsx
 import React from 'react';
 import { 
   LineChart, 
@@ -15,7 +14,6 @@ import {
 } from 'recharts';
 import { WaterLevelData, ThresholdSettings } from '../../context/AppContext';
 
-// Definisi tipe props untuk WaterLevelChart
 interface WaterLevelChartProps {
   data: WaterLevelData[];
   settings: ThresholdSettings | null;
@@ -23,7 +21,6 @@ interface WaterLevelChartProps {
   isLoading?: boolean;
 }
 
-// Definisi tipe untuk CustomTooltip
 interface CustomTooltipProps {
   active?: boolean;
   payload?: Array<{
@@ -54,7 +51,6 @@ const WaterLevelChart: React.FC<WaterLevelChartProps> = ({
     );
   }
   
-  // Format time for x-axis - PERBAIKAN DISINI
   const formatTime = (timestamp: string) => {
     try {
       if (!timestamp) return 'No Data';
@@ -67,7 +63,6 @@ const WaterLevelChart: React.FC<WaterLevelChartProps> = ({
     }
   };
 
-  // Custom tooltip
   const CustomTooltip = ({ active, payload }: CustomTooltipProps) => {
     if (active && payload && payload.length && payload[0].payload) {
       const data = payload[0].payload;

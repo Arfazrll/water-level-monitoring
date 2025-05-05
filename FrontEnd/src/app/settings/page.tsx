@@ -2,6 +2,7 @@
 
 import React, { useState } from 'react';
 import ThresholdForm from '@/components/settings/ThresholdForm';
+import NotificationForm from '@/components/settings/NotificationForm';
 import { useAppContext } from '@/context/AppContext';
 
 const SettingsPage: React.FC = () => {
@@ -65,135 +66,7 @@ const SettingsPage: React.FC = () => {
         <div className="p-6">
           {activeTab === 'thresholds' && <ThresholdForm />}
           
-          {activeTab === 'notifications' && (
-            <div className="space-y-6">
-              <h2 className="text-xl font-semibold text-gray-800 mb-4">Pengaturan Notifikasi</h2>
-              
-              {/* Notifikasi Email */}
-              <div className="bg-white p-4 rounded-lg border border-gray-200">
-                <h3 className="text-lg font-medium text-gray-800 mb-4">Notifikasi Email</h3>
-                
-                <div className="space-y-4">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <label className="text-sm font-medium text-gray-700">
-                        Aktifkan Notifikasi Email
-                      </label>
-                      <p className="text-xs text-gray-500 mt-1">
-                        Terima peringatan dan pembaruan status melalui email
-                      </p>
-                    </div>
-                    <div className="relative">
-                      <div className="block w-14 h-7 bg-gray-200 rounded-full p-1 cursor-pointer">
-                        <div className="w-5 h-5 bg-white rounded-full shadow-md transform"></div>
-                      </div>
-                    </div>
-                  </div>
-                  
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                      Alamat Email
-                    </label>
-                    <input
-                      type="email"
-                      className="block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
-                      placeholder="email-anda@contoh.com"
-                    />
-                  </div>
-                  
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Jenis Notifikasi
-                    </label>
-                    <div className="space-y-2">
-                      <div className="flex items-center">
-                        <input
-                          type="checkbox"
-                          id="notify-warning"
-                          className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
-                          defaultChecked
-                        />
-                        <label htmlFor="notify-warning" className="ml-2 text-sm text-gray-700">
-                          Peringatan level awas
-                        </label>
-                      </div>
-                      <div className="flex items-center">
-                        <input
-                          type="checkbox"
-                          id="notify-danger"
-                          className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
-                          defaultChecked
-                        />
-                        <label htmlFor="notify-danger" className="ml-2 text-sm text-gray-700">
-                          Peringatan level bahaya
-                        </label>
-                      </div>
-                      <div className="flex items-center">
-                        <input
-                          type="checkbox"
-                          id="notify-system"
-                          className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
-                        />
-                        <label htmlFor="notify-system" className="ml-2 text-sm text-gray-700">
-                          Pembaruan status sistem
-                        </label>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              </div>
-              
-              {/* Notifikasi SMS */}
-              <div className="bg-white p-4 rounded-lg border border-gray-200">
-                <h3 className="text-lg font-medium text-gray-800 mb-4">Notifikasi SMS</h3>
-                
-                <div className="space-y-4">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <label className="text-sm font-medium text-gray-700">
-                        Aktifkan Notifikasi SMS
-                      </label>
-                      <p className="text-xs text-gray-500 mt-1">
-                        Terima peringatan mendesak melalui SMS
-                      </p>
-                    </div>
-                    <div className="relative">
-                      <div className="block w-14 h-7 bg-gray-200 rounded-full p-1 cursor-pointer">
-                        <div className="w-5 h-5 bg-white rounded-full shadow-md transform"></div>
-                      </div>
-                    </div>
-                  </div>
-                  
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                      Nomor Telepon
-                    </label>
-                    <input
-                      type="tel"
-                      className="block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
-                      placeholder="+62 812 3456 7890"
-                    />
-                  </div>
-                  
-                  <div>
-                    <p className="text-sm text-gray-500">
-                      Notifikasi SMS hanya dikirim untuk peringatan kritis untuk menghindari kelebihan pesan
-                    </p>
-                  </div>
-                </div>
-              </div>
-              
-              {/* Tombol Simpan */}
-              <div className="flex justify-end">
-                <button
-                  type="button"
-                  className="px-4 py-2 bg-blue-600 text-white font-medium rounded-md hover:bg-blue-700"
-                >
-                  Simpan Pengaturan Notifikasi
-                </button>
-              </div>
-            </div>
-          )}
+          {activeTab === 'notifications' && <NotificationForm />}
           
           {activeTab === 'system' && (
             <div className="space-y-6">

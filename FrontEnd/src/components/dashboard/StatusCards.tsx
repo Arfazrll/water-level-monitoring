@@ -1,8 +1,6 @@
-// src/components/dashboard/StatusCards.tsx
 import React from 'react';
 import { WaterLevelData, ThresholdSettings, PumpStatus } from '../../context/AppContext';
 
-// Definisi tipe props untuk StatusCards
 interface StatusCardsProps {
   currentLevel: WaterLevelData | null;
   settings: ThresholdSettings | null;
@@ -18,7 +16,7 @@ const StatusCards: React.FC<StatusCardsProps> = ({
   activeAlerts,
   isLoading = false
 }) => {
-  // Loading state
+
   if (isLoading || !settings) {
     return (
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
@@ -36,7 +34,6 @@ const StatusCards: React.FC<StatusCardsProps> = ({
     );
   }
   
-  // No data state
   if (!currentLevel || !pumpStatus) {
     return (
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
@@ -56,7 +53,6 @@ const StatusCards: React.FC<StatusCardsProps> = ({
     );
   }
 
-  // Helper untuk menentukan status level air dan warna
   const getLevelStatus = () => {
     if (currentLevel.level >= settings.dangerLevel) {
       return { text: 'BAHAYA', color: 'text-red-600' };
@@ -71,10 +67,8 @@ const StatusCards: React.FC<StatusCardsProps> = ({
   
   const levelStatus = getLevelStatus();
   
-  // Hitung persentase terisi
   const percentageFilled = Math.min(Math.max((currentLevel.level / settings.maxLevel) * 100, 0), 100);
   
-  // Format status pompa
   const getPumpStatusInfo = () => {
     if (pumpStatus.isActive) {
       return {

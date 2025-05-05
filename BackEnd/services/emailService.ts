@@ -1,5 +1,4 @@
 // BackEnd/services/emailService.ts
-
 import transporter, { isEmailServiceEnabled } from '../config/mailer';
 
 export const sendAlertEmail = async (
@@ -14,7 +13,7 @@ export const sendAlertEmail = async (
       return false;
     }
     
-    // Don't send if email is empty
+    // Validasi email penerima
     if (!to) {
       console.warn('Notifikasi email dilewati: Alamat email penerima tidak ada');
       return false;
@@ -27,13 +26,13 @@ export const sendAlertEmail = async (
       return false;
     }
     
-    // Cek lagi transporter
+    // Cek transporter
     if (!transporter) {
       console.warn('Transporter email tidak tersedia');
       return false;
     }
     
-    // Build HTML email dengan informasi lebih lengkap dan desain yang lebih baik
+    // Template HTML email
     const html = `
       <div style="font-family: Arial, sans-serif; padding: 20px; max-width: 600px; margin: 0 auto; border: 1px solid #e4e4e4; border-radius: 5px;">
         <div style="background-color: ${subject.includes('DANGER') ? '#dc3545' : '#ffc107'}; padding: 15px; border-radius: 5px 5px 0 0;">
@@ -66,7 +65,7 @@ export const sendAlertEmail = async (
           </p>
           
           <div style="text-align: center; margin-top: 30px;">
-            <a href="http://localhost:3000/dashboard" 
+            <a href="${process.env.FRONTEND_URL || 'http://localhost:3000'}/dashboard" 
                style="display: inline-block; padding: 10px 20px; background-color: #0d6efd; color: white; text-decoration: none; border-radius: 5px; font-weight: bold;">
               Buka Dashboard
             </a>
@@ -82,57 +81,19 @@ export const sendAlertEmail = async (
       </div>
     `;
     
-    // Debug
-    console.log(`Mencoba mengirim email ke: ${to}`);
-    console.log(`Email from: ${process.env.EMAIL_FROM || '"Water Monitor" <alert@watermonitor.com>'}`);
+    // Kirim email
+    const info = await transporter.sendMail({
+      from: process.env.EMAIL_FROM || '"Water Monitor" <alert@watermonitor.com>',
+      to,
+      subject,
+      text: message,
+      html
+    });
     
-    // Send email dengan retry
-    let retryCount = 0;
-    const maxRetries = 3;
-    
-    while (retryCount < maxRetries) {
-      try {
-        if (!transporter) {
-          console.warn('Transporter email masih null saat pengiriman');
-          return false;
-        }
-
-        const info = await transporter.sendMail({
-          from: process.env.EMAIL_FROM || '"Water Monitor" <alert@watermonitor.com>',
-          to,
-          subject,
-          text: message,
-          html
-        });
-        
-        console.log('Email notifikasi berhasil dikirim:', info.messageId);
-        return true;
-      } catch (sendError) {
-        retryCount++;
-        console.error(`Percobaan ke-${retryCount} gagal mengirim email:`, sendError);
-        
-        if (retryCount >= maxRetries) {
-          throw sendError;
-        }
-        
-        // Tunggu sebelum retry (dengan exponential backoff)
-        await new Promise(resolve => setTimeout(resolve, 1000 * retryCount));
-      }
-    }
-    
-    return false;
+    console.log('Email notifikasi berhasil dikirim:', info.messageId);
+    return true;
   } catch (error) {
     console.error('Error saat mengirim email notifikasi:', error);
-    
-    // Log informasi spesifik jika tersedia
-    if (error instanceof Error) {
-      if (error.message.includes('EAUTH')) {
-        console.error('Kesalahan otentikasi email. Periksa username dan password di .env');
-      } else if (error.message.includes('ESOCKET')) {
-        console.error('Kesalahan koneksi ke server email. Periksa koneksi internet atau firewall');
-      }
-    }
-    
     return false;
   }
 };
@@ -150,19 +111,6 @@ export const sendPumpNotification = async (
       return false;
     }
     
-    // Don't send if email is empty
-    if (!to) {
-      console.warn('Notifikasi pompa dilewati: Alamat email penerima tidak ada');
-      return false;
-    }
-    
-    // Validasi format email
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    if (!emailRegex.test(to)) {
-      console.warn(`Notifikasi pompa dilewati: Format email tidak valid "${to}"`);
-      return false;
-    }
-    
     const subject = isActivated 
       ? 'Pompa Air Diaktifkan' 
       : 'Pompa Air Dinonaktifkan';
@@ -171,7 +119,7 @@ export const sendPumpNotification = async (
       ? `Pompa air telah diaktifkan secara otomatis karena ketinggian air mencapai ${waterLevel} ${unit}.`
       : `Pompa air telah dinonaktifkan secara otomatis karena ketinggian air turun menjadi ${waterLevel} ${unit}.`;
     
-    // Build HTML email dengan desain yang lebih baik
+    // Template HTML email
     const html = `
       <div style="font-family: Arial, sans-serif; padding: 20px; max-width: 600px; margin: 0 auto; border: 1px solid #e4e4e4; border-radius: 5px;">
         <div style="background-color: #0d6efd; padding: 15px; border-radius: 5px 5px 0 0;">
@@ -205,7 +153,7 @@ export const sendPumpNotification = async (
           </p>
           
           <div style="text-align: center; margin-top: 30px;">
-            <a href="http://localhost:3000/dashboard" 
+            <a href="${process.env.FRONTEND_URL || 'http://localhost:3000'}/dashboard" 
                style="display: inline-block; padding: 10px 20px; background-color: #0d6efd; color: white; text-decoration: none; border-radius: 5px; font-weight: bold;">
               Buka Dashboard
             </a>
@@ -221,41 +169,23 @@ export const sendPumpNotification = async (
       </div>
     `;
     
-    // Send email dengan retry
-    let retryCount = 0;
-    const maxRetries = 3;
-    
-    while (retryCount < maxRetries) {
-      try {
-        if (!transporter) {
-          console.warn('Transporter email masih null saat pengiriman');
-          return false;
-        }
-
-        const info = await transporter.sendMail({
-          from: process.env.EMAIL_FROM || '"Water Monitor" <alert@watermonitor.com>',
-          to,
-          subject,
-          text: message,
-          html
-        });
-        
-        console.log('Email notifikasi pompa berhasil dikirim:', info.messageId);
-        return true;
-      } catch (sendError) {
-        retryCount++;
-        console.error(`Percobaan ke-${retryCount} gagal mengirim email:`, sendError);
-        
-        if (retryCount >= maxRetries) {
-          throw sendError;
-        }
-        
-        // Tunggu sebelum retry
-        await new Promise(resolve => setTimeout(resolve, 1000 * retryCount));
-      }
+    // Kirim email
+    if (!transporter) {
+      console.warn('Transporter email tidak tersedia');
+      return false;
     }
     
-    return false;
+    // Tambahkan kode untuk mengirim email dan mendapatkan info
+    const info = await transporter.sendMail({
+      from: process.env.EMAIL_FROM || '"Water Monitor" <alert@watermonitor.com>',
+      to,
+      subject,
+      text: message,
+      html
+    });
+    
+    console.log('Email notifikasi pompa berhasil dikirim:', info.messageId);
+    return true;
   } catch (error) {
     console.error('Error saat mengirim email notifikasi pompa:', error);
     return false;

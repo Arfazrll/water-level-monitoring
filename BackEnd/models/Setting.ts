@@ -1,4 +1,3 @@
-// BackEnd/models/Setting.ts (Perbaikan)
 import mongoose, { Document, Schema, Model } from 'mongoose';
 
 export interface ThresholdSettings {
@@ -26,7 +25,6 @@ export interface Settings extends Document {
   lastUpdatedBy?: string;
 }
 
-// Add static method to model interface
 interface SettingsModel extends Model<Settings> {
   getSettings(): Promise<Settings>;
 }
@@ -107,7 +105,6 @@ const SettingsSchema: Schema = new Schema(
   }
 );
 
-// Initialize with default settings if none exist
 SettingsSchema.statics.getSettings = async function() {
   let settings = await this.findOne();
   if (!settings) {

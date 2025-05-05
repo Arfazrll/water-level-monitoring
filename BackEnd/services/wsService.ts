@@ -1,9 +1,7 @@
-// BackEnd/services/wsService.ts
 import { Server as HttpServer } from 'http';
 import WebSocket, { WebSocketServer } from 'ws';
 import { v4 as uuidv4 } from 'uuid';
 
-// Tipe untuk objek pesan WebSocket
 interface WebSocketMessage {
   type: string;
   data?: any;
@@ -11,7 +9,6 @@ interface WebSocketMessage {
   timestamp?: number | string;
 }
 
-// Status dan metrik WebSocket server
 let wsStatus = {
   isInitialized: false,
   activeConnections: 0,
@@ -20,10 +17,8 @@ let wsStatus = {
   startTime: new Date()
 };
 
-// Set untuk menyimpan klien yang terhubung (kompatibilitas dengan kode lama)
 const connectedClients = new Set<WebSocket>();
 
-// Menyimpan semua koneksi klien aktif dengan metadatanya
 const clients = new Map<WebSocket, {
   id: string;
   ip: string;
@@ -42,13 +37,11 @@ let wss: WebSocketServer | null = null;
  */
 export const initWebSocketServer = (server: HttpServer): WebSocketServer => {
   try {
-    // Periksa apakah wss sudah diinisialisasi
     if (wss) {
       console.log('WebSocket server sudah diinisialisasi');
       return wss;
     }
     
-    // Inisialisasi WebSocket server dengan path
     wss = new WebSocketServer({ 
       server,
       path: '/ws'
@@ -66,7 +59,6 @@ export const initWebSocketServer = (server: HttpServer): WebSocketServer => {
       const ip = req.socket.remoteAddress || 'unknown';
       const userAgent = req.headers['user-agent'] || 'unknown';
       
-      // Menyimpan informasi tentang klien
       clients.set(ws, {
         id: clientId,
         ip,
@@ -77,16 +69,13 @@ export const initWebSocketServer = (server: HttpServer): WebSocketServer => {
         clientType: 'web' // default, bisa diubah berdasarkan info dari klien
       });
       
-      // Menambahkan ke set untuk kompatibilitas dengan kode lama
       connectedClients.add(ws);
       
-      // Memperbarui metrik
       wsStatus.activeConnections = clients.size;
       wsStatus.totalConnections++;
       
       console.log(`Klien terhubung ke WebSocket dari ${ip} dengan ID: ${clientId}`);
       
-      // Mengirim pesan welcome ke klien baru
       sendToClient(ws, {
         type: 'connection',
         data: { 
@@ -97,7 +86,6 @@ export const initWebSocketServer = (server: HttpServer): WebSocketServer => {
         }
       });
       
-      // Menangani pesan dari klien
       ws.on('message', (rawMessage) => {
         try {
           // Memperbarui timestamp aktivitas terakhir
@@ -107,14 +95,10 @@ export const initWebSocketServer = (server: HttpServer): WebSocketServer => {
           }
           
           console.log(`Menerima pesan WebSocket dari klien ${clientId}`);
-          
-          // Parsing pesan
           const message = JSON.parse(rawMessage.toString());
           
-          // Memproses pesan berdasarkan tipenya
           switch (message.type) {
             case 'ping':
-              // Merespons ping dengan pong
               sendToClient(ws, {
                 type: 'pong',
                 data: {
@@ -123,7 +107,6 @@ export const initWebSocketServer = (server: HttpServer): WebSocketServer => {
                 }
               });
               
-              // Memperbarui informasi klien
               if (clientInfo) {
                 clientInfo.pingCount++;
                 if (message.data?.clientInfo) {
@@ -133,19 +116,16 @@ export const initWebSocketServer = (server: HttpServer): WebSocketServer => {
               break;
               
             case 'subscribe':
-              // Menangani permintaan berlangganan - implementasi sesuai kebutuhan
               console.log(`Klien ${clientId} melakukan subscribe ke: ${message.data?.topics}`);
               break;
               
             case 'disconnect':
-              // Pesan pemutusan eksplisit dari klien
               console.log(`Klien ${clientId} meminta disconnect: ${message.data?.reason || 'Tidak ada alasan'}`);
               ws.close();
               break;
               
             default:
               console.log(`Menerima pesan dari klien ${clientId}:`, message);
-              // Menangani tipe pesan lainnya sesuai kebutuhan
               break;
           }
         } catch (err) {
@@ -153,16 +133,13 @@ export const initWebSocketServer = (server: HttpServer): WebSocketServer => {
         }
       });
       
-      // Menangani pemutusan koneksi
       ws.on('close', () => {
         console.log(`Klien WebSocket terputus: ${clientId}`);
-        // Menghapus dari map dan set klien
         clients.delete(ws);
         connectedClients.delete(ws);
         wsStatus.activeConnections = clients.size;
       });
       
-      // Menangani error
       ws.on('error', (error) => {
         console.error(`Error koneksi WebSocket untuk klien ${clientId}:`, error);
         clients.delete(ws);
@@ -170,12 +147,10 @@ export const initWebSocketServer = (server: HttpServer): WebSocketServer => {
       });
     });
     
-    // Menangani error server WebSocket
     wss.on('error', (error) => {
       console.error('Error server WebSocket:', error);
     });
-    
-    // Pengaturan interval untuk ping otomatis dan pembersihan koneksi idle
+
     setInterval(() => {
       cleanInactiveConnections();
     }, 30000); // Cek setiap 30 detik
@@ -196,12 +171,10 @@ export const initWebSocketServer = (server: HttpServer): WebSocketServer => {
 export const sendToClient = (client: WebSocket, message: WebSocketMessage): boolean => {
   try {
     if (client.readyState === WebSocket.OPEN) {
-      // Menambahkan timestamp jika belum ada
       if (!message.timestamp) {
         message.timestamp = new Date().toISOString();
       }
       
-      // Menambahkan ID pesan jika belum ada
       if (!message.id) {
         message.id = uuidv4();
       }
@@ -243,7 +216,6 @@ export const broadcast = (data: any): boolean => {
       }
     });
     
-    // Memperbarui timestamp broadcast terakhir
     wsStatus.lastBroadcast = new Date();
   } catch (error) {
     console.error('Error broadcast WebSocket:', error);
@@ -266,13 +238,11 @@ export const broadcastMessage = (
   }
   
   let sentCount = 0;
-  
-  // Menambahkan timestamp jika belum ada
+
   if (!message.timestamp) {
     message.timestamp = new Date().toISOString();
   }
   
-  // Menambahkan ID pesan jika belum ada
   if (!message.id) {
     message.id = uuidv4();
   }
@@ -281,7 +251,6 @@ export const broadcastMessage = (
   
   clients.forEach((clientInfo, client) => {
     try {
-      // Menerapkan filter jika disediakan
       if (filter && !filter(client)) {
         return;
       }
@@ -295,7 +264,6 @@ export const broadcastMessage = (
     }
   });
   
-  // Memperbarui timestamp broadcast terakhir
   wsStatus.lastBroadcast = new Date();
   
   return sentCount;
@@ -315,7 +283,6 @@ const cleanInactiveConnections = (): void => {
       console.log(`Menutup koneksi idle: ${clientInfo.id}, idle selama ${idleTime / 1000}s`);
       
       try {
-        // Kirim pemberitahuan pemutusan
         sendToClient(client, {
           type: 'disconnect',
           data: {
@@ -324,7 +291,6 @@ const cleanInactiveConnections = (): void => {
           }
         });
         
-        // Tutup koneksi
         client.close();
         clients.delete(client);
         connectedClients.delete(client);
@@ -334,7 +300,6 @@ const cleanInactiveConnections = (): void => {
         connectedClients.delete(client);
       }
     } else {
-      // Kirim ping ke klien aktif untuk keepalive
       try {
         if (client.readyState === WebSocket.OPEN) {
           sendToClient(client, {
@@ -350,7 +315,6 @@ const cleanInactiveConnections = (): void => {
     }
   });
   
-  // Memperbarui jumlah koneksi aktif
   wsStatus.activeConnections = clients.size;
 };
 
@@ -413,8 +377,6 @@ export const broadcastAlert = (alert: any): boolean => {
 export const broadcastSettings = (settings: any): boolean => {
   if (!settings) return false;
   
-  // Struktur pesan disesuaikan dengan format yang digunakan di settings.ts
-  // Settings bisa berupa settings.thresholds atau settings objek lengkap
   const payload = {
     type: 'settings',
     data: {
@@ -472,7 +434,6 @@ export const sendAlert = (alertData: any): number => {
   });
 };
 
-// Export semua fungsi untuk kompatibilitas dengan kode lama dan baru
 export default {
   initWebSocketServer,
   broadcast,

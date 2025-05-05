@@ -3,7 +3,7 @@ import { AlertData } from '@/lib/types';
 import { fetchAlerts, acknowledgeAlert as apiAcknowledgeAlert } from '@/lib/api';
 
 interface UseAlertsOptions {
-  pollingInterval?: number; // in milliseconds
+  pollingInterval?: number; 
   filter?: 'all' | 'warning' | 'danger';
   acknowledged?: boolean;
   initialData?: AlertData[];
@@ -19,13 +19,11 @@ export function useAlerts({
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
 
-  // Fetch alerts with optional filtering
   const fetchData = useCallback(async () => {
     try {
       setIsLoading(true);
       setError(null);
       
-      // Build query parameters for filtering
       const params = new URLSearchParams();
       if (filter !== 'all') {
         params.append('type', filter);
@@ -36,7 +34,6 @@ export function useAlerts({
       
       const alertsData = await fetchAlerts();
       
-      // Apply filtering on client side (in a real app, this would be done by the API)
       let filteredAlerts = [...alertsData];
       
       if (filter !== 'all') {
@@ -56,26 +53,22 @@ export function useAlerts({
     }
   }, [filter, acknowledged]);
 
-  // Fetch initial data
   useEffect(() => {
     fetchData();
   }, [fetchData]);
 
-  // Setup polling for real-time updates
   useEffect(() => {
-    if (pollingInterval <= 0) return; // Disable polling if interval is 0 or negative
+    if (pollingInterval <= 0) return; 
     
     const intervalId = setInterval(fetchData, pollingInterval);
     
     return () => clearInterval(intervalId);
   }, [fetchData, pollingInterval]);
 
-  // Acknowledge an alert
   const acknowledgeAlert = async (alertId: string) => {
     try {
       await apiAcknowledgeAlert(alertId);
       
-      // Update local state
       setAlerts(prev => 
         prev.map(alert => 
           alert.id === alertId ? { ...alert, acknowledged: true } : alert
@@ -90,7 +83,6 @@ export function useAlerts({
     }
   };
 
-  // Get counts of different alert types
   const counts = {
     total: alerts.length,
     warning: alerts.filter(alert => alert.type === 'warning').length,

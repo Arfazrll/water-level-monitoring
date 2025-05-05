@@ -1,7 +1,5 @@
 "use client";
 
-// FrontEnd/src/components/dashboard/AlarmStatus.tsx
-
 import React, { useState, useEffect } from 'react';
 import { useAppContext } from '@/context/AppContext';
 
@@ -9,24 +7,20 @@ const AlarmStatus: React.FC = () => {
   const { currentLevel, settings, alerts, acknowledgeAllAlerts } = useAppContext();
   const [buzzerActive, setBuzzerActive] = useState(false);
   
-  // Dapatkan peringatan terbaru yang belum diketahui, jika ada
   const latestAlert = alerts
     .filter(alert => !alert.acknowledged)
     .sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime())[0];
   
-  // Tentukan apakah alarm aktif
   const isAlarmActive = !!latestAlert || 
     (currentLevel && settings && (
       currentLevel.level >= settings.dangerLevel || 
       currentLevel.level >= settings.warningLevel
     ));
   
-  // Set status buzzer berdasarkan peringatan yang belum diakui
   useEffect(() => {
     setBuzzerActive(alerts.some(alert => !alert.acknowledged));
   }, [alerts]);
   
-  // Menangani pengakuan semua peringatan dan mematikan buzzer
   const handleAcknowledgeAll = async () => {
     try {
       await acknowledgeAllAlerts();
@@ -35,11 +29,9 @@ const AlarmStatus: React.FC = () => {
     }
   };
   
-  // Tentukan level alarm
   const getAlarmStatus = () => {
     if (!currentLevel || !settings) return null;
     
-    // Jika ada peringatan bahaya atau level saat ini di atas ambang bahaya
     if (
       (latestAlert && latestAlert.type === 'danger') ||
       currentLevel.level >= settings.dangerLevel
@@ -54,7 +46,6 @@ const AlarmStatus: React.FC = () => {
       };
     }
     
-    // Jika ada peringatan awas atau level saat ini di atas ambang peringatan
     if (
       (latestAlert && latestAlert.type === 'warning') ||
       currentLevel.level >= settings.warningLevel
@@ -69,7 +60,6 @@ const AlarmStatus: React.FC = () => {
       };
     }
     
-    // Status normal
     return {
       level: 'NORMAL',
       message: 'Level air dalam rentang normal',

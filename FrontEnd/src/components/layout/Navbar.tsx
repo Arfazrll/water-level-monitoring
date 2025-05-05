@@ -8,20 +8,15 @@ const Navbar = () => {
   const { deviceStatus, alerts } = useAppContext();
   const [currentTime, setCurrentTime] = useState('');
   
-  // Count unacknowledged alerts
   const unacknowledgedAlerts = alerts.filter(alert => !alert.acknowledged).length;
 
-  // Update time only on client-side after component mounts
   useEffect(() => {
-    // Set initial time
     setCurrentTime(new Date().toLocaleString());
     
-    // Optional: update time every second
     const timer = setInterval(() => {
       setCurrentTime(new Date().toLocaleString());
     }, 1000);
     
-    // Cleanup interval on unmount
     return () => clearInterval(timer);
   }, []);
 

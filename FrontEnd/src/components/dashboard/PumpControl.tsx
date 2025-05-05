@@ -1,8 +1,6 @@
-// src/components/dashboard/PumpControl.tsx
 import React from 'react';
 import { PumpStatus, ThresholdSettings } from '../../context/AppContext';
 
-// Definisi tipe props untuk PumpControl
 interface PumpControlProps {
   pumpStatus: PumpStatus | null;
   settings: ThresholdSettings | null;
@@ -18,7 +16,7 @@ const PumpControl: React.FC<PumpControlProps> = ({
   onToggleMode,
   isLoading = false
 }) => {
-  // Loading state
+
   if (isLoading || !settings) {
     return (
       <div className="bg-white p-4 rounded-lg shadow-md">
@@ -32,7 +30,6 @@ const PumpControl: React.FC<PumpControlProps> = ({
     );
   }
 
-  // No data state
   if (!pumpStatus) {
     return (
       <div className="bg-white p-4 rounded-lg shadow-md">
@@ -52,17 +49,14 @@ const PumpControl: React.FC<PumpControlProps> = ({
     );
   }
 
-  // Handle pump toggle
   const handleTogglePump = () => {
     onTogglePump(!pumpStatus.isActive);
   };
 
-  // Handle mode toggle
   const handleToggleMode = () => {
     onToggleMode(pumpStatus.mode === 'auto' ? 'manual' : 'auto');
   };
   
-  // Format the last activation time
   const formattedLastActivated = pumpStatus.lastActivated 
     ? new Date(pumpStatus.lastActivated).toLocaleString()
     : 'Tidak ada data';

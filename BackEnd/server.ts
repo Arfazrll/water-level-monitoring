@@ -1,4 +1,3 @@
-// BackEnd/server.ts
 import express, { Request, Response, NextFunction } from 'express';
 import http from 'http';
 import dotenv from 'dotenv';
@@ -8,30 +7,21 @@ import cors from 'cors';
 import connectDB from './config/db';
 import { verifyEmailConnection } from './config/mailer';
 import { initWebSocketServer, getWebSocketStatus } from './services/wsService';
-
-// Import services for initialization
 import { initSensor, sensorEvents, getBuzzerStatus } from './services/sensorService';
-
-// Import routes - PERBAIKAN: Gunakan nama file yang benar dan konsisten
-// Pastikan semua file menggunakan format kebab-case (huruf kecil)
-import waterLevelRoutes from './routes/api/water-level';  // Seharusnya file bernama "water-level.ts"
+import waterLevelRoutes from './routes/api/water-level';  
 import alertsRoutes from './routes/api/alerts';
 import pumpRoutes from './routes/api/pump';
 import settingsRoutes from './routes/api/settings';
 import esp32Routes from './routes/api/esp32';
 import authRoutes from './routes/auth';
 
-// Inisialisasi variabel lingkungan - prioritaskan sebelum eksekusi kode lainnya
 dotenv.config();
 
 // Inisialisasi Express
 const app = express();
 const PORT = process.env.PORT || 5000;
-
-// Fungsi utilitas: asynchronous delay
 const wait = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
 
-// Status pelacakan server
 let serverStatus = {
   dbConnected: false,
   emailVerified: false,
@@ -40,29 +30,22 @@ let serverStatus = {
   serverStartTime: new Date()
 };
 
-// Konfigurasi middleware fundamental
-app.use(bodyParser.json({ limit: '1mb' })); // Meningkatkan batas ukuran JSON
+app.use(bodyParser.json({ limit: '1mb' })); 
 app.use(express.urlencoded({ extended: true, limit: '1mb' }));
 
-// Definisi opsi CORS
 const corsOptions = {
   origin: function(origin: string | undefined, callback: (err: Error | null, allow?: boolean) => void) {
-    // Izinkan permintaan dari origin apapun termasuk ESP32
-    // Di production, ini seharusnya dibatasi lebih ketat
     callback(null, true);
   },
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With'],
-  credentials: true, // Izinkan kredensial
-  maxAge: 86400, // Cache preflight request selama 1 hari
+  credentials: true, 
+  maxAge: 86400, 
   preflightContinue: false,
   optionsSuccessStatus: 204
 };
 
-// Konfigurasi CORS komprehensif untuk kompatibilitas maksimal
 app.use(cors(corsOptions));
-
-// Middleware untuk logging request dengan pengukuran durasi
 app.use((req: Request, res: Response, next: NextFunction) => {
   const start = Date.now();
   const ip = req.headers['x-forwarded-for'] || req.connection.remoteAddress;
@@ -77,7 +60,6 @@ app.use((req: Request, res: Response, next: NextFunction) => {
   next();
 });
 
-// Registrasi rute API dengan error handling
 app.use('/api/water-level', waterLevelRoutes);
 app.use('/api/alerts', alertsRoutes);
 app.use('/api/pump', pumpRoutes);
@@ -85,12 +67,10 @@ app.use('/api/settings', settingsRoutes);
 app.use('/api/esp32', esp32Routes);
 app.use('/api/auth', authRoutes);
 
-// Endpoint root untuk healthcheck
 app.get('/', (req: Request, res: Response) => {
   res.send('API Pemantauan Ketinggian Air sedang berjalan...');
 });
 
-// Endpoint status server dengan metrik komprehensif
 app.get('/api/status', (req: Request, res: Response) => {
   const wsStatus = getWebSocketStatus();
   
@@ -133,7 +113,6 @@ app.get('/api/test', (req: Request, res: Response) => {
   });
 });
 
-// Handler untuk rute yang tidak ditemukan
 app.use((req: Request, res: Response) => {
   res.status(404).json({
     success: false,
@@ -141,7 +120,6 @@ app.use((req: Request, res: Response) => {
   });
 });
 
-// Middleware untuk penanganan error global
 app.use((err: Error, req: Request, res: Response, next: NextFunction) => {
   console.error('Unhandled error:', err);
   res.status(500).json({ 
@@ -170,7 +148,6 @@ const connectWithRetry = async (retries = 5, interval = 5000) => {
       currentRetry++;
       console.error(`Percobaan koneksi database ke-${currentRetry} gagal. Mencoba lagi dalam ${interval/1000} detik...`);
       
-      // Strategi fallback: MongoDB Atlas → MongoDB lokal
       if (process.env.MONGO_URI?.includes('mongodb+srv') && currentRetry === 2) {
         console.log('Mencoba terhubung ke MongoDB lokal...');
         try {
@@ -193,7 +170,6 @@ const connectWithRetry = async (retries = 5, interval = 5000) => {
         return false;
       }
       
-      // Wait before retrying
       await wait(interval);
     }
   }
@@ -206,7 +182,6 @@ const connectWithRetry = async (retries = 5, interval = 5000) => {
  */
 const handleSensorReading = async (data: { level: number, unit: string, timestamp: Date }) => {
   try {
-    // Logika penanganan sensor di sini - silakan tambahkan jika diperlukan
     console.log(`Level air dari sensor diterima: ${data.level} ${data.unit}`);
   } catch (error) {
     console.error('Error memproses pembacaan sensor:', error);
@@ -218,10 +193,8 @@ const handleSensorReading = async (data: { level: number, unit: string, timestam
  * Implementasi pattern graceful startup dengan fallback modes
  */
 const startServer = async () => {
-  // Inisialisasi koneksi database dengan mekanisme retry
   await connectWithRetry(3, 3000);
   
-  // Verifikasi konektivitas email
   try {
     const emailConnected = await verifyEmailConnection();
     serverStatus.emailVerified = emailConnected;
@@ -235,7 +208,6 @@ const startServer = async () => {
     console.warn('Layanan notifikasi email tidak akan tersedia.');
   }
   
-  // Inisialisasi WebSocket server dengan penanganan error
   try {
     initWebSocketServer(server);
     serverStatus.wsInitialized = true;
@@ -253,7 +225,6 @@ const startServer = async () => {
     initSensor();
     serverStatus.sensorInitialized = true;
     
-    // Registrasi event handler untuk pembacaan sensor
     sensorEvents.on('reading', handleSensorReading);
     
     console.log('Sensor hardware diinisialisasi');
@@ -263,26 +234,22 @@ const startServer = async () => {
     console.warn('Sensor initialization failed. Check hardware connections and configuration.');
   }
   
-  // Inisialisasi listener server
   server.listen(PORT, () => {
     console.log(`Server berjalan di port ${PORT}`);
     console.log(`Mode server: ${process.env.NODE_ENV || 'development'}`);
   });
 };
 
-// Inisialisasi server dengan penanganan error global
 startServer().catch(err => {
   console.error('Gagal memulai server:', err);
   process.exit(1);
 });
 
-// Penanganan unhandled promise rejections
 process.on('unhandledRejection', (err: Error) => {
   console.error(`Rejection yang tidak tertangani: ${err.message}`);
   console.error(err.stack);
 });
 
-// Penanganan uncaught exceptions dengan graceful shutdown
 process.on('uncaughtException', (err: Error) => {
   console.error(`Exception yang tidak tertangani: ${err.message}`);
   console.error(err.stack);

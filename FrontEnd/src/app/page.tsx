@@ -8,7 +8,6 @@ export default function HomePage() {
   const router = useRouter();
 
   useEffect(() => {
-    // Redirect to dashboard page
     router.replace('/dashboard');
   }, [router]);
 

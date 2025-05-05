@@ -114,15 +114,28 @@ router.post('/notifications', async (req: Request, res: Response) => {
       return;
     }
     
+    // Validate email format
+    if (emailEnabled && emailAddress) {
+      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+      if (!emailRegex.test(emailAddress)) {
+        res.status(400).json({ message: 'Invalid email format' });
+        return;
+      }
+    }
+    
     let settings = await Settings.findOne();
     
     if (!settings) {
       // Create new settings if none exist
       settings = new Settings({
         thresholds: {
-          warning: 50,
-          danger: 75,
-          pumpActivation: 80
+          warningLevel: 30,
+          dangerLevel: 20,
+          maxLevel: 100,
+          minLevel: 0,
+          pumpActivationLevel: 40,
+          pumpDeactivationLevel: 20,
+          unit: 'cm',
         },
         notifications: {
           emailEnabled: emailEnabled ?? false,
@@ -130,7 +143,8 @@ router.post('/notifications', async (req: Request, res: Response) => {
           notifyOnWarning: notifyOnWarning ?? true,
           notifyOnDanger: notifyOnDanger ?? true,
           notifyOnPumpActivation: notifyOnPumpActivation ?? false
-        }
+        },
+        pumpMode: 'auto',
       });
     } else {
       // Update notification settings
@@ -145,10 +159,28 @@ router.post('/notifications', async (req: Request, res: Response) => {
     
     await settings.save();
     
+    // Kirim email konfirmasi jika pengaturan email diaktifkan
+    if (emailEnabled && emailAddress) {
+      try {
+        const { sendAlertEmail } = require('../../services/emailService');
+        await sendAlertEmail(
+          emailAddress,
+          'Konfigurasi Notifikasi Sistem Monitoring Air',
+          'Pengaturan notifikasi email Anda berhasil dikonfigurasi. Anda akan menerima peringatan sesuai dengan preferensi yang telah diatur.'
+        );
+      } catch (emailError) {
+        console.error('Failed to send confirmation email:', emailError);
+        // Tidak mengembalikan error ke user, hanya mencatat
+      }
+    }
+    
     res.json(settings.notifications);
   } catch (error) {
     console.error('Error updating notification settings:', error);
-    res.status(500).json({ message: 'Server error' });
+    res.status(500).json({ 
+      success: false, 
+      message: 'Server error' 
+    });
   }
 });
 
