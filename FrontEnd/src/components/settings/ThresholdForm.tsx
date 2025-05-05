@@ -1,15 +1,28 @@
-// FrontEnd/src/components/settings/ThresholdForm.tsx
-
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useAppContext } from '@/context/AppContext';
 import { ThresholdSettings } from '@/lib/types';
 
 const ThresholdForm: React.FC = () => {
   const { settings, updateThresholds } = useAppContext();
   
-  const [formState, setFormState] = useState<ThresholdSettings>({
-    ...settings
-  });
+  const defaultSettings: ThresholdSettings = {
+    warningLevel: 50,
+    dangerLevel: 70,
+    maxLevel: 100,
+    minLevel: 0,
+    pumpActivationLevel: 60,
+    pumpDeactivationLevel: 30,
+    unit: 'cm'
+  };
+  
+  const safeSettings: ThresholdSettings = settings || defaultSettings;
+  const [formState, setFormState] = useState<ThresholdSettings>(safeSettings);
+  
+  useEffect(() => {
+    if (settings) {
+      setFormState(settings);
+    }
+  }, [settings]);
   
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -19,8 +32,8 @@ const ThresholdForm: React.FC = () => {
   const [isBuzzerTestActive, setIsBuzzerTestActive] = useState(false);
   const [isSensorCalibrating, setIsSensorCalibrating] = useState(false);
   const [calibrationValues, setCalibrationValues] = useState({
-    minLevel: settings.minLevel,
-    maxLevel: settings.maxLevel
+    minLevel: safeSettings.minLevel,
+    maxLevel: safeSettings.maxLevel
   });
   
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -32,10 +45,8 @@ const ThresholdForm: React.FC = () => {
   };
   
   const validateForm = (): boolean => {
-    // Reset pesan
     setError(null);
     
-    // Aturan validasi
     if (formState.warningLevel >= formState.dangerLevel) {
       setError('Level peringatan harus lebih rendah dari level bahaya');
       return false;
@@ -67,7 +78,6 @@ const ThresholdForm: React.FC = () => {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    // Validasi formulir
     if (!validateForm()) {
       return;
     }
@@ -78,7 +88,6 @@ const ThresholdForm: React.FC = () => {
       
       setSuccess('Pengaturan ambang batas berhasil diperbarui');
       
-      // Hapus pesan sukses setelah 3 detik
       setTimeout(() => {
         setSuccess(null);
       }, 3000);
@@ -91,11 +100,9 @@ const ThresholdForm: React.FC = () => {
     }
   };
   
-  // Pengujian buzzer
   const handleBuzzerTest = async () => {
     try {
       setIsBuzzerTestActive(true);
-      // API call untuk menguji buzzer
       await fetch('/api/test/buzzer', {
         method: 'POST',
         headers: {
@@ -107,11 +114,9 @@ const ThresholdForm: React.FC = () => {
         }),
       });
       
-      // Buzzer akan otomatis dimatikan oleh API setelah waktu tertentu
-      // Tetapi kita tetap atur state UI setelah timeout
       setTimeout(() => {
         setIsBuzzerTestActive(false);
-      }, 3500); // sedikit lebih lama dari durasi sebenarnya untuk memastikan
+      }, 3500); 
       
     } catch (err) {
       console.error('Error saat menguji buzzer:', err);
@@ -120,14 +125,11 @@ const ThresholdForm: React.FC = () => {
     }
   };
   
-  // Kalibrasi sensor
   const handleCalibration = async () => {
     try {
       if (isSensorCalibrating) {
-        // Simpan hasil kalibrasi
         setIsSensorCalibrating(false);
         
-        // API call untuk menyimpan nilai kalibrasi
         const response = await fetch('/api/test/sensor-calibration', {
           method: 'POST',
           headers: {
@@ -137,14 +139,17 @@ const ThresholdForm: React.FC = () => {
         });
         
         if (response.ok) {
-          // Tidak lagi menyimpan hasil dalam variabel 'result' yang tidak digunakan
           await response.json();
           setSuccess('Sensor berhasil dikalibrasi');
           
-          // Perbarui pengaturan min/max level
-          await updateThresholds(calibrationValues);
+          const updatedSettings: ThresholdSettings = {
+            ...formState,
+            minLevel: calibrationValues.minLevel,
+            maxLevel: calibrationValues.maxLevel
+          };
           
-          // Hapus pesan sukses setelah 3 detik
+          await updateThresholds(updatedSettings);
+          
           setTimeout(() => {
             setSuccess(null);
           }, 3000);
@@ -152,7 +157,6 @@ const ThresholdForm: React.FC = () => {
           setError('Gagal menyimpan kalibrasi sensor');
         }
       } else {
-        // Mulai proses kalibrasi
         setIsSensorCalibrating(true);
       }
     } catch (err) {
@@ -162,7 +166,6 @@ const ThresholdForm: React.FC = () => {
     }
   };
   
-  // Handler untuk perubahan nilai kalibrasi
   const handleCalibrationChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
     setCalibrationValues(prev => ({
@@ -193,7 +196,7 @@ const ThresholdForm: React.FC = () => {
             {/* Level Peringatan */}
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">
-                Level Peringatan ({settings.unit})
+                Level Peringatan ({safeSettings.unit})
               </label>
               <div className="relative">
                 <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
@@ -205,8 +208,8 @@ const ThresholdForm: React.FC = () => {
                   value={formState.warningLevel}
                   onChange={handleChange}
                   step="0.1"
-                  min={settings.minLevel}
-                  max={settings.maxLevel}
+                  min={safeSettings.minLevel}
+                  max={safeSettings.maxLevel}
                   className="pl-10 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
                   required
                 />
@@ -219,7 +222,7 @@ const ThresholdForm: React.FC = () => {
             {/* Level Bahaya */}
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">
-                Level Bahaya ({settings.unit})
+                Level Bahaya ({safeSettings.unit})
               </label>
               <div className="relative">
                 <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
@@ -231,8 +234,8 @@ const ThresholdForm: React.FC = () => {
                   value={formState.dangerLevel}
                   onChange={handleChange}
                   step="0.1"
-                  min={settings.minLevel}
-                  max={settings.maxLevel}
+                  min={safeSettings.minLevel}
+                  max={safeSettings.maxLevel}
                   className="pl-10 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
                   required
                 />
@@ -245,7 +248,7 @@ const ThresholdForm: React.FC = () => {
             {/* Level Aktivasi Pompa */}
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">
-                Level Aktivasi Pompa ({settings.unit})
+                Level Aktivasi Pompa ({safeSettings.unit})
               </label>
               <div className="relative">
                 <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
@@ -257,8 +260,8 @@ const ThresholdForm: React.FC = () => {
                   value={formState.pumpActivationLevel}
                   onChange={handleChange}
                   step="0.1"
-                  min={settings.minLevel}
-                  max={settings.maxLevel}
+                  min={safeSettings.minLevel}
+                  max={safeSettings.maxLevel}
                   className="pl-10 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
                   required
                 />
@@ -271,7 +274,7 @@ const ThresholdForm: React.FC = () => {
             {/* Level Deaktivasi Pompa */}
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">
-                Level Deaktivasi Pompa ({settings.unit})
+                Level Deaktivasi Pompa ({safeSettings.unit})
               </label>
               <div className="relative">
                 <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
@@ -283,8 +286,8 @@ const ThresholdForm: React.FC = () => {
                   value={formState.pumpDeactivationLevel}
                   onChange={handleChange}
                   step="0.1"
-                  min={settings.minLevel}
-                  max={settings.maxLevel}
+                  min={safeSettings.minLevel}
+                  max={safeSettings.maxLevel}
                   className="pl-10 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
                   required
                 />
@@ -303,7 +306,7 @@ const ThresholdForm: React.FC = () => {
               {/* Level Max */}
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Level Maksimum ({settings.unit})
+                  Level Maksimum ({safeSettings.unit})
                 </label>
                 <input
                   type="number"
@@ -322,7 +325,7 @@ const ThresholdForm: React.FC = () => {
               {/* Level Min */}
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Level Minimum ({settings.unit})
+                  Level Minimum ({safeSettings.unit})
                 </label>
                 <input
                   type="number"
@@ -413,7 +416,7 @@ const ThresholdForm: React.FC = () => {
                 <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                   <div>
                     <label className="block text-xs font-medium text-gray-700 mb-1">
-                      Level Minimum ({settings.unit})
+                      Level Minimum ({safeSettings.unit})
                     </label>
                     <input
                       type="number"
@@ -426,7 +429,7 @@ const ThresholdForm: React.FC = () => {
                   
                   <div>
                     <label className="block text-xs font-medium text-gray-700 mb-1">
-                      Level Maksimum ({settings.unit})
+                      Level Maksimum ({safeSettings.unit})
                     </label>
                     <input
                       type="number"
@@ -455,7 +458,7 @@ const ThresholdForm: React.FC = () => {
           {/* Penanda level maksimum */}
           <div className="absolute w-full flex items-center" style={{ top: '0%' }}>
             <div className="h-px w-full bg-gray-400 flex-grow"></div>
-            <div className="bg-gray-200 text-gray-700 text-xs px-1 rounded">Maks {formState.maxLevel}{settings.unit}</div>
+            <div className="bg-gray-200 text-gray-700 text-xs px-1 rounded">Maks {formState.maxLevel}{safeSettings.unit}</div>
           </div>
           
           {/* Penanda level bahaya */}
@@ -464,7 +467,7 @@ const ThresholdForm: React.FC = () => {
             style={{ top: `${(1 - formState.dangerLevel / formState.maxLevel) * 100}%` }}
           >
             <div className="h-px w-full bg-red-500 flex-grow"></div>
-            <div className="bg-red-100 text-red-700 text-xs px-1 rounded">Bahaya {formState.dangerLevel}{settings.unit}</div>
+            <div className="bg-red-100 text-red-700 text-xs px-1 rounded">Bahaya {formState.dangerLevel}{safeSettings.unit}</div>
           </div>
           
           {/* Penanda level peringatan */}
@@ -473,7 +476,7 @@ const ThresholdForm: React.FC = () => {
             style={{ top: `${(1 - formState.warningLevel / formState.maxLevel) * 100}%` }}
           >
             <div className="h-px w-full bg-yellow-500 flex-grow"></div>
-            <div className="bg-yellow-100 text-yellow-700 text-xs px-1 rounded">Peringatan {formState.warningLevel}{settings.unit}</div>
+            <div className="bg-yellow-100 text-yellow-700 text-xs px-1 rounded">Peringatan {formState.warningLevel}{safeSettings.unit}</div>
           </div>
           
           {/* Penanda aktivasi pompa */}
@@ -482,7 +485,7 @@ const ThresholdForm: React.FC = () => {
             style={{ top: `${(1 - formState.pumpActivationLevel / formState.maxLevel) * 100}%` }}
           >
             <div className="h-px w-full bg-blue-500 flex-grow"></div>
-            <div className="bg-blue-100 text-blue-700 text-xs px-1 rounded">Pompa Aktif {formState.pumpActivationLevel}{settings.unit}</div>
+            <div className="bg-blue-100 text-blue-700 text-xs px-1 rounded">Pompa Aktif {formState.pumpActivationLevel}{safeSettings.unit}</div>
           </div>
           
           {/* Penanda deaktivasi pompa */}
@@ -491,13 +494,13 @@ const ThresholdForm: React.FC = () => {
             style={{ top: `${(1 - formState.pumpDeactivationLevel / formState.maxLevel) * 100}%` }}
           >
             <div className="h-px w-full bg-green-500 flex-grow"></div>
-            <div className="bg-green-100 text-green-700 text-xs px-1 rounded">Pompa Mati {formState.pumpDeactivationLevel}{settings.unit}</div>
+            <div className="bg-green-100 text-green-700 text-xs px-1 rounded">Pompa Mati {formState.pumpDeactivationLevel}{safeSettings.unit}</div>
           </div>
           
           {/* Penanda level minimum */}
           <div className="absolute w-full flex items-center" style={{ top: '100%' }}>
             <div className="h-px w-full bg-gray-400 flex-grow"></div>
-            <div className="bg-gray-200 text-gray-700 text-xs px-1 rounded">Min {formState.minLevel}{settings.unit}</div>
+            <div className="bg-gray-200 text-gray-700 text-xs px-1 rounded">Min {formState.minLevel}{safeSettings.unit}</div>
           </div>
         </div>
       </div>
