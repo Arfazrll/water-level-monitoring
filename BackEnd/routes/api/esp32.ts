@@ -95,6 +95,8 @@ const handleEsp32Data = async (req: Request, res: Response, next: NextFunction) 
     
     const { thresholds, notifications, pumpMode } = settings;
     const validDistance = Math.max(0, Math.min(distance, thresholds.maxLevel));
+
+    // Rumus Penting
     const waterLevel = Math.max(0, Math.min(thresholds.maxLevel - validDistance, thresholds.maxLevel));
     console.log(`Distance: ${distance}cm, Valid distance: ${validDistance}cm, Converted to water level: ${waterLevel}cm`);
     
@@ -167,10 +169,18 @@ const handleEsp32Data = async (req: Request, res: Response, next: NextFunction) 
             if ((alertType === 'warning' && notifications.notifyOnWarning) || 
                 (alertType === 'danger' && notifications.notifyOnDanger)) {
               try {
+                // Menggunakan template yang tepat berdasarkan jenis alert
+                const subject = alertType === 'danger' 
+                  ? 'DANGER: Critical Water Level Detected - Immediate Action Required'
+                  : 'WARNING: Water Level Has Reached Warning Threshold';
+                
                 await sendAlertEmail(
                   notifications.emailAddress,
-                  `Peringatan Level Air ${alertType.toUpperCase()}`,
-                  alertMessage
+                  subject,
+                  alertMessage,
+                  alertType,
+                  waterLevel,
+                  thresholds.unit || 'cm'
                 );
                 console.log(`Alert email sent to ${notifications.emailAddress}`);
               } catch (emailError) {

@@ -1,4 +1,4 @@
-// BackEnd/config/mailer.ts (Perbaikan)
+// BackEnd/config/mailer.ts
 import nodemailer from 'nodemailer';
 import dotenv from 'dotenv';
 
@@ -62,19 +62,7 @@ export const verifyEmailConnection = async (): Promise<boolean> => {
     await transporter.verify();
     console.log('Koneksi server email berhasil');
     
-    console.log('Mengirim email tes...');
-    try {
-      const info = await transporter.sendMail({
-        from: process.env.EMAIL_FROM || '"Water Monitor" <alert@watermonitor.com>',
-        to: process.env.EMAIL_USER,
-        subject: 'Test Email - Water Monitoring System',
-        text: 'Sistem monitoring level air berhasil dikonfigurasi.',
-        html: '<p>Sistem monitoring level air berhasil dikonfigurasi.</p>'
-      });
-      console.log('Email tes berhasil dikirim:', info.messageId);
-    } catch (testError) {
-      console.error('Gagal mengirim email tes:', testError);
-    }
+    // Test email dihapus, hanya memverifikasi koneksi
     
     return true;
   } catch (error: any) {

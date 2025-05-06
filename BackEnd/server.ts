@@ -14,6 +14,7 @@ import pumpRoutes from './routes/api/pump';
 import settingsRoutes from './routes/api/settings';
 import esp32Routes from './routes/api/esp32';
 import authRoutes from './routes/auth';
+import reportRoutes from './routes/api/reports';
 
 dotenv.config();
 
@@ -66,6 +67,7 @@ app.use('/api/pump', pumpRoutes);
 app.use('/api/settings', settingsRoutes);
 app.use('/api/esp32', esp32Routes);
 app.use('/api/auth', authRoutes);
+app.use('/api/reports', reportRoutes);
 
 app.get('/', (req: Request, res: Response) => {
   res.send('API Pemantauan Ketinggian Air sedang berjalan...');
