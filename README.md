@@ -39,11 +39,6 @@ This system is perfect for:
 
 ## 🏛️ System Architecture
 
-The architecture of this system is designed for reliability and real-time responsiveness. The diagram below illustrates the complete data flow, from sensor to user interface.
-
-![System Architecture](./image_5a880f.png)
-*(Catatan: Diagram ini menggunakan NodeMCU sebagai contoh, namun arsitekturnya identik untuk ESP32. Pastikan Anda telah mengunggah gambar `image_5a880f.png` ke repositori Anda agar gambar ini muncul)*
-
 The workflow is as follows:
 
 1.  **Input (Data Acquisition):** An ultrasonic sensor placed above the water tank (`Tangki Air`) continuously measures the distance to the water's surface.
